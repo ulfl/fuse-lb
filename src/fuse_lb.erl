@@ -9,7 +9,7 @@
 -behaviour(gen_server).
 
 %% API.
--export([start_link/2, start_link/3, call/2, stop/1]).
+-export([start_link/2, start_link/3, call/2, available_fuses/1, stop/1]).
 
 %% Gen server callbacks.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -41,6 +41,10 @@ call(Lb, Fun) ->
       end
   end.
 
+-spec available_fuses(pid()) -> {ok, integer()}.
+available_fuses(Lb) ->
+  {ok, _NumAvailable} = gen_server:call(Lb, get_num_available).
+
 -spec stop(pid()) -> any().
 stop(Lb) -> gen_server:call(Lb, stop).
 
@@ -61,6 +65,8 @@ handle_call(get_fuse, _From, #state{algorithm=Algorithm,
                                     available=Available0} = S) ->
   {Fuse, Available} = pick(Algorithm, Available0),
   {reply, {ok, Fuse}, S#state{algorithm=Algorithm, available=Available}};
+handle_call(get_num_available, _From, #state{available=Available} = S) ->
+  {reply, {ok, length(Available)}, S};
 handle_call(stop, _From, S) ->
   {stop, normal, ok, S}.
 

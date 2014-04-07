@@ -41,9 +41,10 @@ call(Lb, Fun) ->
       end
   end.
 
--spec available_fuses(pid()) -> {ok, integer()}.
+-spec available_fuses(pid()) -> integer().
 available_fuses(Lb) ->
-  {ok, _NumAvailable} = gen_server:call(Lb, get_num_available).
+  {ok, NumAvailable} = gen_server:call(Lb, get_num_available),
+  NumAvailable.
 
 -spec stop(pid()) -> any().
 stop(Lb) -> gen_server:call(Lb, stop).

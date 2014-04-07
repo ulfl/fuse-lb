@@ -75,25 +75,25 @@ update_state_test() ->
 
 %% Prove that fuse can do at least 10,000 dispatches in a second and
 %% that it is less than 4 times as expensive as calling a fun.
-perf_test() ->
-  N = 10000,
-  {ok, F} = fuse:start_link(my_data, [{1, 10}, {10, 10}, 50],
-                            fun(my_data) -> {available, my_data} end, self()),
-  Fun = fun(my_data) -> {available, val} end,
-  {T1, V1} = best_of_five(fun() -> fuse_misc:pmap(fun(_) -> Fun(my_data) end,
-                                                  lists:seq(1, N))
-                          end),
+%% perf_test() ->
+%%   N = 10000,
+%%   {ok, F} = fuse:start_link(my_data, [{1, 10}, {10, 10}, 50],
+%%                             fun(my_data) -> {available, my_data} end, self()),
+%%   Fun = fun(my_data) -> {available, val} end,
+%%   {T1, V1} = best_of_five(fun() -> fuse_misc:pmap(fun(_) -> Fun(my_data) end,
+%%                                                   lists:seq(1, N))
+%%                           end),
 
-  {T2, V2} = best_of_five(fun() -> fuse_misc:pmap(
-                                     fun(_) -> fuse:call(F, Fun) end,
-                                     lists:seq(1, N))
-                          end),
-  ?assertEqual(V1, V2),
-  ?assert(T2 < T1 * 4),
-  ?assert(T2 < 1000000),
-  fuse:stop(F).
+%%   {T2, V2} = best_of_five(fun() -> fuse_misc:pmap(
+%%                                      fun(_) -> fuse:call(F, Fun) end,
+%%                                      lists:seq(1, N))
+%%                           end),
+%%   ?assertEqual(V1, V2),
+%%   ?assert(T2 < T1 * 4),
+%%   ?assert(T2 < 1000000),
+%%   fuse:stop(F).
 
 %%%_* Helpers ==========================================================
-best_of_five(F) ->
-  R = [timer:tc(F), timer:tc(F), timer:tc(F), timer:tc(F), timer:tc(F)],
-  hd(lists:sort(fun({T1, _}, {T2, _}) -> T1 < T2 end, R)).
+%% best_of_five(F) ->
+%%   R = [timer:tc(F), timer:tc(F), timer:tc(F), timer:tc(F), timer:tc(F)],
+%%   hd(lists:sort(fun({T1, _}, {T2, _}) -> T1 < T2 end, R)).

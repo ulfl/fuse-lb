@@ -15,7 +15,7 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
--record(state, {algorithm=none, available=[], burnt=[], log=none}).
+-record(state, {algorithm=none, available=[], log=none}).
 
 %%%_* API ==============================================================
 -spec start_link([{any(), fuse:timeout_entry(), fun()}],
@@ -71,15 +71,13 @@ handle_call(get_num_available, _From, #state{available=Available} = S) ->
 handle_call(stop, _From, S) ->
   {stop, normal, ok, S}.
 
-handle_cast({burnt_fuse, F}, #state{burnt=Burnt, available=Available,
-                                    log=L} = S) ->
+handle_cast({burnt_fuse, F}, #state{available=Available, log=L} = S) ->
   L("fuse_lb: removing fuse (pid=~p) from pool", [F]),
-  {noreply, S#state{available=Available -- [F], burnt=Burnt ++ [F]}};
+  {noreply, S#state{available=Available -- [F]}};
 handle_cast({re_fuse, F}, #state{algorithm=Algorithm, available=Available,
-                                 burnt=Burnt, log=L} = S) ->
+                                 log=L} = S) ->
   L("fuse_lb: adding fuse (pid=~p) back to pool", [F]),
-  {noreply, S#state{available=add_back(Algorithm, F, Available),
-                    burnt=Burnt -- [F]}};
+  {noreply, S#state{available=add_back(Algorithm, F, Available)}};
 handle_cast(stop, S) -> {stop, ok, S};
 handle_cast(Msg, S)  -> {stop, {unexpected_cast, Msg}, S}.
 

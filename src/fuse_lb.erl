@@ -72,11 +72,11 @@ handle_call(stop, _From, S) ->
   {stop, normal, ok, S}.
 
 handle_cast({burnt_fuse, F}, #state{available=Available, log=L} = S) ->
-  L("fuse_lb: removing fuse (pid=~p) from pool", [F]),
+  L("fuse_lb: Fuse (pid=~p) burnt, removing from pool.", [F]),
   {noreply, S#state{available=Available -- [F]}};
 handle_cast({re_fuse, F}, #state{algorithm=Algorithm, available=Available,
                                  log=L} = S) ->
-  L("fuse_lb: adding fuse (pid=~p) back to pool", [F]),
+  L("fuse_lb: Adding refreshed fuse (pid=~p) back to pool.", [F]),
   {noreply, S#state{available=add_back(Algorithm, F, Available)}};
 handle_cast(stop, S) -> {stop, ok, S};
 handle_cast(Msg, S)  -> {stop, {unexpected_cast, Msg}, S}.

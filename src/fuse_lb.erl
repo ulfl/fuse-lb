@@ -28,7 +28,8 @@ start_link(FuseData, Algorithm) ->
 start_link(FuseData, Algorithm, Log) ->
   gen_server:start_link(?MODULE, [FuseData, Algorithm, Log], []).
 
--spec call(pid(), fun()) -> {ok, any()} | {error, fuse_burnt}.
+-spec call(pid(), fun()) -> {ok, any()} | {error, fuse_burnt} |
+                            {error, no_fuses_left}.
 call(Lb, Fun) ->
   {ok, Fuse} = gen_server:call(Lb, get_fuse),
   case Fuse of

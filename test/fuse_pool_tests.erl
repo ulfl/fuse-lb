@@ -22,11 +22,13 @@ unavailable_test() ->
                                   {3, Tmos, Probe}]),
   ?ae(1, fuse_pool:call(P, fun(UserData) -> {available, UserData} end)),
   ?ae(1, fuse_pool:call(P, fun(UserData) -> {unavailable, UserData} end)),
+  ?ae(2, fuse_pool:num_fuses_active(P)),
   ?ae(2, fuse_pool:call(P, fun(UserData) -> {available, UserData} end)),
   ?ae(2, fuse_pool:call(P, fun(UserData) -> {unavailable, UserData} end)),
+  ?ae(1, fuse_pool:num_fuses_active(P)),
   ?ae(3, fuse_pool:call(P, fun(UserData) -> {available, UserData} end)),
   ?ae(3, fuse_pool:call(P, fun(UserData) -> {unavailable, UserData} end)),
-  ?ae(0, fuse_pool:available_fuses(P)).
+  ?ae(0, fuse_pool:num_workers_idle(P)).
 
 recovery_test() ->
   Probe = fun(X) -> {available, X} end,
@@ -37,9 +39,9 @@ recovery_test() ->
   ?ae(1, fuse_pool:call(P, fun(UserData) -> {unavailable, UserData} end)),
   ?ae(2, fuse_pool:call(P, fun(UserData) -> {available, UserData} end)),
   ?ae(2, fuse_pool:call(P, fun(UserData) -> {available, UserData} end)),
-  ?ae(2, fuse_pool:available_fuses(P)),
+  ?ae(2, fuse_pool:num_workers_idle(P)),
   timer:sleep(1500),
-  ?ae(3, fuse_pool:available_fuses(P)),
+  ?ae(3, fuse_pool:num_workers_idle(P)),
   ?ae(1, fuse_pool:call(P, fun(UserData) -> {available, UserData} end)),
   ?ae(1, fuse_pool:call(P, fun(UserData) -> {unavailable, UserData} end)).
 
@@ -54,15 +56,15 @@ queue_test() ->
   s(fun() -> ?ae(2, fuse_pool:call(P, Work)) end),
   s(fun() -> ?ae(3, fuse_pool:call(P, Work)) end),
   timer:sleep(100),
-  ?ae(0, fuse_pool:available_fuses(P)),
+  ?ae(0, fuse_pool:num_workers_idle(P)),
   s(fun() -> ?ae(1, fuse_pool:call(P, Work)) end),
   s(fun() -> ?ae(2, fuse_pool:call(P, Work)) end),
   s(fun() -> ?ae(3, fuse_pool:call(P, Work)) end),
   timer:sleep(100),
-  ?ae(3, fuse_pool:queued_work(P)),
+  ?ae(3, fuse_pool:num_jobs_queued(P)),
   w(6),
-  ?ae(0, fuse_pool:queued_work(P)),
-  ?ae(3, fuse_pool:available_fuses(P)).
+  ?ae(0, fuse_pool:num_jobs_queued(P)),
+  ?ae(3, fuse_pool:num_workers_idle(P)).
 
 reovery_test() ->
   Probe = fun(X) -> {available, X} end,
@@ -77,17 +79,17 @@ reovery_test() ->
   s(fun() -> ?ae(2, fuse_pool:call(P, Fail)) end),
   s(fun() -> ?ae(3, fuse_pool:call(P, Work)) end),
   timer:sleep(100),
-  ?ae(0, fuse_pool:available_fuses(P)),
+  ?ae(0, fuse_pool:num_workers_idle(P)),
   s(fun() -> ?ae(1, fuse_pool:call(P, Work)) end),
   s(fun() -> ?ae(3, fuse_pool:call(P, Work)) end),
   s(fun() -> ?ae(1, fuse_pool:call(P, Work)) end),
   timer:sleep(100),
-  ?ae(3, fuse_pool:queued_work(P)),
+  ?ae(3, fuse_pool:num_jobs_queued(P)),
   w(6),
-  ?ae(0, fuse_pool:queued_work(P)),
-  ?ae(2, fuse_pool:available_fuses(P)),
+  ?ae(0, fuse_pool:num_jobs_queued(P)),
+  ?ae(2, fuse_pool:num_workers_idle(P)),
   timer:sleep(1500),
-  ?ae(3, fuse_pool:available_fuses(P)),
+  ?ae(3, fuse_pool:num_workers_idle(P)),
   s(fun() -> ?ae(2, fuse_pool:call(P, Work)) end),
   w(1).
 

@@ -3,14 +3,16 @@
 -behaviour(gen_server).
 
 %% API.
--export([start_link/1, start_link/2, call/2, available_fuses/1,
-         queued_work/1, stop/1]).
+-export([start_link/1, start_link/2, call/2, num_fuses_active/1,
+         num_workers_idle/1, num_jobs_queued/1, stop/1]).
 
 %% Gen server callbacks.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
--record(state, {available=[], queue=queue:new(), log=none}).
+%% Available is the fuses that are not burnt and not in use. Queue is
+%% jobs waiting for an available fuse.
+-record(state, {all=[], available=[], queue=queue:new(), log=none}).
 
 %%%_* API ==============================================================
 -spec start_link([{any(), fuse:timeout_entry(), fun()}]) ->
@@ -25,15 +27,17 @@ start_link(PoolData, Log) ->
 -spec call(pid(), fun()) -> any().
 call(Pool, Fun) -> gen_server:call(Pool, {do_work, Fun}).
 
--spec available_fuses(pid()) -> integer().
-available_fuses(Pool) ->
-  {ok, N} = gen_server:call(Pool, get_num_available),
-  N.
+-spec num_fuses_active(pid()) -> integer().
+num_fuses_active(Pool) ->
+  L0 = gen_server:call(Pool, get_all),
+  L1 = lists:filter(fun(X) -> not fuse:is_burnt(X) end, L0),
+  length(L1).
 
--spec queued_work(pid()) -> integer().
-queued_work(Pool) ->
-  {ok, N} = gen_server:call(Pool, get_num_queued),
-  N.
+-spec num_workers_idle(pid()) -> integer().
+num_workers_idle(Pool) -> gen_server:call(Pool, get_num_available).
+
+-spec num_jobs_queued(pid()) -> integer().
+num_jobs_queued(Pool) -> gen_server:call(Pool, get_num_queued).
 
 -spec stop(pid()) -> any().
 stop(Lb) -> gen_server:call(Lb, stop).
@@ -47,17 +51,19 @@ init(PoolData, LogFun) ->
                     {ok, Fuse} = fuse:start_link(UserData, Tmos, Probe, self()),
                     Fuse
                 end, PoolData),
-  {ok, #state{available=A, log=LogFun}}.
+  {ok, #state{all=A, available=A, log=LogFun}}.
 
 handle_call({do_work, Fun}, From, #state{available=[F | T], log=Log} = S) ->
   spawn_work(From, F, Fun, Log),
   {noreply, S#state{available=T}};
 handle_call({do_work, Fun}, From, #state{available=[], queue=Q} = S) ->
   {noreply, S#state{queue=queue:in({From, Fun}, Q)}};
-handle_call(get_num_available, _From, #state{available=A} = S) ->
-  {reply, {ok, length(A)}, S};
+handle_call(get_all, _From, #state{all=All} = S) ->
+  {reply, All, S};
+handle_call(get_num_available, _From, #state{available=Available} = S) ->
+  {reply, length(Available), S};
 handle_call(get_num_queued, _From, #state{queue=Q} = S) ->
-  {reply, {ok, queue:len(Q)}, S};
+  {reply, queue:len(Q), S};
 handle_call(stop, _From, S) ->
   {stop, normal, ok, S}.
 

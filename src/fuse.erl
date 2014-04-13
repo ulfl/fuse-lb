@@ -26,7 +26,7 @@
 -behaviour(gen_server).
 
 %% API.
--export([start_link/4, call/2, stop/1]).
+-export([start_link/4, call/2, is_burnt/1, stop/1]).
 
 %% Gen server callbacks.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -60,6 +60,11 @@ call(Fuse, Fun) ->
       end;
     true -> {error, fuse_burnt}
   end.
+
+-spec is_burnt(pid()) -> boolean().
+is_burnt(Fuse) ->
+  {ok, {Burnt, _}} = gen_server:call(Fuse, check_burnt),
+  Burnt.
 
 -spec stop(pid()) -> any().
 stop(Fuse) -> gen_server:call(Fuse, stop).

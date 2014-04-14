@@ -12,13 +12,15 @@ pool_in_front_of_lb_test() ->
   Tmos = [1000],
   Log = fun(F, A) -> ?debugFmt(F, A) end,
   {ok, P} = fuse_pool:start_link([{w1, Tmos, Probe}, {w2, Tmos, Probe},
-                                  {w3, Tmos, Probe}, {w4, Tmos, Probe}], Log),
+                                  {w3, Tmos, Probe}, {w4, Tmos, Probe}],
+                                 5000, Log),
   {ok, Lb} = fuse_lb:start_link([{b1, Tmos, Probe}, {b2, Tmos, Probe}],
                                 round_robin, Log),
 
   Work = fun(D) -> timer:sleep(1000), {available, D} end,
   LbCall = fun(_) ->
-               {available, fuse_lb:call(Lb, Work)}
+               {ok, R} = fuse_lb:call(Lb, Work),
+               {available, R}
            end,
 
   s(fun() -> ?ae({ok, b1}, fuse_pool:call(P, LbCall)) end),
@@ -38,11 +40,13 @@ lb_in_front_of_pools_test() ->
   Log = fun(F, A) -> ?debugFmt(F, A) end,
   {ok, Lb} = fuse_lb:start_link([{b1, Tmos, Probe}, {b2, Tmos, Probe}],
                                 round_robin, Log),
-  {ok, P} = fuse_pool:start_link([{w1, Tmos, Probe}, {w2, Tmos, Probe}], Log),
+  {ok, P} = fuse_pool:start_link([{w1, Tmos, Probe}, {w2, Tmos, Probe}], 5000,
+                                 Log),
 
   Work = fun(D) -> timer:sleep(1000), {available, D} end,
   PoolCall = fun(Box) ->
-                 {available, {Box, fuse_pool:call(P, Work)}}
+                 {ok, R} = fuse_pool:call(P, Work),
+                 {available, {Box, R}}
              end,
 
   ?ae({ok, {b1, w1}}, fuse_lb:call(Lb, PoolCall)),
@@ -64,7 +68,8 @@ lb_in_front_of_pools_async_test() ->
 
   Work = fun(D) -> timer:sleep(500), {available, D} end,
   PoolCall = fun({Box, Pool}) ->
-                 {available, {Box, fuse_pool:call(Pool, Work)}}
+                 {ok, R} = fuse_pool:call(Pool, Work),
+                 {available, {Box, R}}
              end,
 
   s(fun() -> ?ae({ok, {b1, p1w1}}, fuse_lb:call(Lb, PoolCall)) end),

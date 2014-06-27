@@ -45,8 +45,8 @@
 -spec start_link(any(), [timeout_entry()], fun(), pid()) -> ignore |
                                                             {error, _} |
                                                             {ok, pid()}.
-start_link(UserData, Timeouts, Probe, Owner) ->
-  gen_server:start_link(?MODULE, [UserData, Timeouts, Probe, Owner], []).
+start_link(Init, Timeouts, Probe, Owner) ->
+  gen_server:start_link(?MODULE, [Init, Timeouts, Probe, Owner], []).
 
 -spec call(pid(), fun()) -> {available, _} | {unavailable, _} |
                             {error, fuse_burnt}.
@@ -70,7 +70,11 @@ is_burnt(Fuse) ->
 stop(Fuse) -> gen_server:call(Fuse, stop).
 
 %%%_* Gen server callbacks =============================================
-init([UserData, Timeouts, Probe, Owner]) ->
+init([Init, Timeouts, Probe, Owner]) ->
+  UserData = case is_function(Init) of
+               true  -> Init();
+               false -> Init
+             end,
   {ok, #state{data=UserData, timeouts=Timeouts, start_timeouts=Timeouts,
               probe=Probe, owner=Owner}}.
 

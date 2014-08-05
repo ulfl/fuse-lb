@@ -71,16 +71,13 @@ stop(Fuse) -> gen_server:call(Fuse, stop).
 
 %%%_* Gen server callbacks =============================================
 init([Init, Timeouts, Probe, Owner]) ->
-  {UserData, PidList} = case is_function(Init) of
-                          true  -> Init();
-                          false -> {Init, []}
-                        end,
-  case PidList of
-    [_|_] -> process_flag(trap_exit, true);
-    _     -> ok
-  end,
+  process_flag(trap_exit, true),
+  UserData = case is_function(Init) of
+               true  -> Init();
+               false -> Init
+             end,
   {ok, #state{data=UserData, timeouts=Timeouts, start_timeouts=Timeouts,
-              probe=Probe, owner=Owner, ignore_exits_pids=PidList}}.
+              probe=Probe, owner=Owner}}.
 
 handle_call(check_burnt, _From, #state{data=UserData, burnt=Burnt} = State) ->
   {reply, {ok, {Burnt, UserData}}, State};
@@ -93,8 +90,8 @@ handle_cast(burn, #state{burnt=false} = State) ->
   erlang:send_after(Tmo, self(), timeout),
   {noreply, State1#state{burnt=true}}.
 
-handle_info({'EXIT', Pid, _}, #state{burnt=false} = State) ->
-  true = lists:member(Pid, State#state.ignore_exits_pids),
+handle_info({'EXIT', Pid, _}, #state{owner=Owner} = State) ->
+  true = Pid =/= Owner,
   {noreply, State};
 handle_info(timeout, #state{burnt=false} = State) ->
   {noreply, State};
@@ -122,8 +119,6 @@ probe(State) ->
   try Probe(State#state.data) of
       {available, Data}                        ->
         probe_succeeded(State#state{data=Data});
-      {available_ignore_pids, {Data, PidList}} ->
-        probe_succeeded(State#state{data=Data, ignore_exits_pids=PidList});
       {unavailable, Data}                      ->
         probe_failed(State#state{data=Data})
   catch

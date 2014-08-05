@@ -21,13 +21,13 @@
 %%%_* API ==============================================================
 -spec start_link([{any(), fuse:timeout_entry(), fun()}], integer()) ->
                     ignore | {error, _} | {ok, pid()}.
-start_link(PoolData, QueueTmo) ->
-  gen_server:start_link(?MODULE, [PoolData, QueueTmo], []).
+start_link(FuseData, QueueTmo) ->
+  gen_server:start_link(?MODULE, [FuseData, QueueTmo], []).
 
 -spec start_link([{any(), fuse:timeout_entry(), fun()}], integer(),
                  fun()) -> ignore | {error, _} | {ok, pid()}.
-start_link(PoolData, QueueTmo, Log) ->
-  gen_server:start_link(?MODULE, [PoolData, QueueTmo, Log], []).
+start_link(FuseData, QueueTmo, Log) ->
+  gen_server:start_link(?MODULE, [FuseData, QueueTmo, Log], []).
 
 -spec call(pid(), fun()) -> {ok, any()} | {error, fuse_pool_queue_tmo}.
 call(Pool, Fun) -> gen_server:call(Pool, {do_work, Fun}, infinity).
@@ -48,14 +48,14 @@ num_jobs_queued(Pool) -> gen_server:call(Pool, get_num_queued).
 stop(Lb) -> gen_server:call(Lb, stop).
 
 %%%_* Gen server callbacks =============================================
-init([PoolData, QueueTmo]) -> init(PoolData, QueueTmo,  fun(_, _) -> ok end);
-init([PoolData, QueueTmo, LogFun]) -> init(PoolData, QueueTmo, LogFun).
+init([FuseData, QueueTmo]) -> init(FuseData, QueueTmo,  fun(_, _) -> ok end);
+init([FuseData, QueueTmo, LogFun]) -> init(FuseData, QueueTmo, LogFun).
 
-init(PoolData, QueueTmo, LogFun) ->
-  A = lists:map(fun({UserData, Tmos, Probe}) ->
-                    {ok, Fuse} = fuse:start_link(UserData, Tmos, Probe, self()),
+init(FuseData, QueueTmo, LogFun) ->
+  A = lists:map(fun({Init, Tmos, Probe}) ->
+                    {ok, Fuse} = fuse:start_link(Init, Tmos, Probe, self()),
                     Fuse
-                end, PoolData),
+                end, FuseData),
   erlang:send_after(?PRUNE_PERIOD, self(), prune),
   {ok, #state{all=A, available=A, tmo=QueueTmo, log=LogFun}}.
 

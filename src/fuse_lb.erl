@@ -55,8 +55,8 @@ init([FuseData, Algorithm]) -> init(FuseData, Algorithm, fun(_, _) -> ok end);
 init([FuseData, Algorithm, LogFun]) -> init(FuseData, Algorithm, LogFun).
 
 init(FuseData, Algorithm, LogFun) ->
-  Fuses0 = lists:map(fun({UserData, Tmos, Probe}) ->
-                         {ok, Fuse} = fuse:start_link(UserData, Tmos, Probe,
+  Fuses0 = lists:map(fun({Init, Tmos, Probe}) ->
+                         {ok, Fuse} = fuse:start_link(Init, Tmos, Probe,
                                                       self()),
                          Fuse
                      end, FuseData),

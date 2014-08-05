@@ -35,7 +35,7 @@
 -export_type([timeout_entry/0]).
 
 -record(state, {data=false, burnt=false, timeouts=[], start_timeouts=[],
-                probe=none, owner=none}).
+                probe=none, owner=none, ignore_exits_pids=[]}).
 
 -type timeout_entry() :: timeout_count() | timeout_val().
 -type timeout_val()   :: integer().
@@ -45,8 +45,8 @@
 -spec start_link(any(), [timeout_entry()], fun(), pid()) -> ignore |
                                                             {error, _} |
                                                             {ok, pid()}.
-start_link(UserData, Timeouts, Probe, Owner) ->
-  gen_server:start_link(?MODULE, [UserData, Timeouts, Probe, Owner], []).
+start_link(Init, Timeouts, Probe, Owner) ->
+  gen_server:start_link(?MODULE, [Init, Timeouts, Probe, Owner], []).
 
 -spec call(pid(), fun()) -> {available, _} | {unavailable, _} |
                             {error, fuse_burnt}.
@@ -70,9 +70,17 @@ is_burnt(Fuse) ->
 stop(Fuse) -> gen_server:call(Fuse, stop).
 
 %%%_* Gen server callbacks =============================================
-init([UserData, Timeouts, Probe, Owner]) ->
+init([Init, Timeouts, Probe, Owner]) ->
+  {UserData, PidList} = case is_function(Init) of
+                          true  -> Init();
+                          false -> {Init, []}
+                        end,
+  case PidList of
+    [_|_] -> process_flag(trap_exit, true);
+    _     -> ok
+  end,
   {ok, #state{data=UserData, timeouts=Timeouts, start_timeouts=Timeouts,
-              probe=Probe, owner=Owner}}.
+              probe=Probe, owner=Owner, ignore_exits_pids=PidList}}.
 
 handle_call(check_burnt, _From, #state{data=UserData, burnt=Burnt} = State) ->
   {reply, {ok, {Burnt, UserData}}, State};
@@ -85,8 +93,13 @@ handle_cast(burn, #state{burnt=false} = State) ->
   erlang:send_after(Tmo, self(), timeout),
   {noreply, State1#state{burnt=true}}.
 
-handle_info(timeout, #state{burnt=false} = State) -> {noreply, State};
-handle_info(timeout, #state{burnt=true} = State)  -> probe(State).
+handle_info({'EXIT', Pid, _}, #state{burnt=false} = State) ->
+  true = lists:member(Pid, State#state.ignore_exits_pids),
+  {noreply, State};
+handle_info(timeout, #state{burnt=false} = State) ->
+  {noreply, State};
+handle_info(timeout, #state{burnt=true} = State)  ->
+  probe(State).
 
 terminate(_Reason, _State) -> ok.
 
@@ -107,8 +120,12 @@ notify_owner(State) -> gen_server:cast(State#state.owner, {re_fuse, self()}).
 probe(State) ->
   Probe = State#state.probe,
   try Probe(State#state.data) of
-      {available, Data}   -> probe_succeeded(State#state{data=Data});
-      {unavailable, Data} -> probe_failed(State#state{data=Data})
+      {available, Data}                        ->
+        probe_succeeded(State#state{data=Data});
+      {available_ignore_pids, {Data, PidList}} ->
+        probe_succeeded(State#state{data=Data, ignore_exits_pids=PidList});
+      {unavailable, Data}                      ->
+        probe_failed(State#state{data=Data})
   catch
     _:_ -> probe_failed(State)
   end.

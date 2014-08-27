@@ -93,8 +93,6 @@ handle_cast(burn, #state{burnt=false} = State) ->
 handle_info({'EXIT', Pid, _}, #state{owner=Owner} = State) ->
   true = Pid =/= Owner,
   {noreply, State};
-handle_info(timeout, #state{burnt=false} = State) ->
-  {noreply, State};
 handle_info(timeout, #state{burnt=true} = State)  ->
   probe(State).
 

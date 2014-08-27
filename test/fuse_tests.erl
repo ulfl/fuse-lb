@@ -54,6 +54,30 @@ call_burnt_multiple_test() ->
   end,
   fuse:stop(F).
 
+burn_race_test() ->
+  Cnt = fuse_misc:make_counter(),
+  ?assertEqual(1, Cnt(get)),
+  {ok, F} = fuse:start_link(my_data, [5], fun(my_data) ->
+                                              erlang:display(erlang:now()),
+                                              case Cnt(inc) of
+                                                10 -> {available, my_data};
+                                                _ ->  {unavailable, my_data}
+                                              end
+                                            end, self()),
+
+  lists:foreach(fun(_) ->
+                    spawn_link(fun() ->
+                                   ?assertEqual({unavailable, someval},
+                                                fuse:call(F, fun(my_data) ->
+                                                                 timer:sleep(100),
+                                                                 {unavailable, someval}
+                                                             end))
+                               end)
+                end,
+                lists:seq(1, 100)),
+  timer:sleep(1000),
+  ?assertEqual(11, Cnt(get)).
+
 update_state_test() ->
   {ok, F} = fuse:start_link(start_state, [50], fun(start_state) ->
                                                    {available, new_state}

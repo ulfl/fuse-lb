@@ -35,7 +35,8 @@
 -export_type([timeout_entry/0]).
 
 -record(state, {data=false, burnt=false, timeouts=[], start_timeouts=[],
-                probe=none, owner=none, ignore_exits_pids=[]}).
+                probe=none, owner=none, ignore_exits_pids=[],
+                timeout_ref=none}).
 
 -type timeout_entry() :: timeout_count() | timeout_val().
 -type timeout_val()   :: integer().
@@ -87,15 +88,14 @@ handle_call(stop, _From, State) ->
 handle_cast(burn, #state{burnt=true} = State) -> {noreply, State};
 handle_cast(burn, #state{burnt=false} = State) ->
   {Tmo, State1} = update_timeouts(State),
-  erlang:send_after(Tmo, self(), timeout),
-  {noreply, State1#state{burnt=true}}.
+  erlang:send_after(Tmo, self(), {timeout, TmoRef = make_ref()}),
+  {noreply, State1#state{burnt=true, timeout_ref=TmoRef}}.
 
 handle_info({'EXIT', Pid, _}, #state{owner=Owner} = State) ->
   true = Pid =/= Owner,
   {noreply, State};
-handle_info(timeout, #state{burnt=false} = State) ->
-  {noreply, State};
-handle_info(timeout, #state{burnt=true} = State)  ->
+handle_info({timeout, TmoRef}, #state{burnt=true,
+                                      timeout_ref=TmoRef} = State)  ->
   probe(State).
 
 terminate(_Reason, _State) -> ok.
@@ -131,7 +131,7 @@ probe_succeeded(State) ->
 
 probe_failed(State) ->
   {Tmo, State1} = update_timeouts(State),
-  erlang:send_after(Tmo, self(), timeout),
+  erlang:send_after(Tmo, self(), {timeout, State1#state.timeout_ref}),
   {noreply, State1}.
 
 %%%_* Eunit ============================================================

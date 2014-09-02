@@ -57,7 +57,7 @@ init([FuseData, Algorithm, LogFun]) -> init(FuseData, Algorithm, LogFun).
 init(FuseData, Algorithm, LogFun) ->
   Fuses0 = lists:map(fun({Init, Tmos, Probe}) ->
                          {ok, Fuse} = fuse:start_link(Init, Tmos, Probe,
-                                                      self()),
+                                                      self(), LogFun),
                          Fuse
                      end, FuseData),
   Fuses = initial_sort(Algorithm, Fuses0),

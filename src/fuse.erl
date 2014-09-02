@@ -26,7 +26,7 @@
 -behaviour(gen_server).
 
 %% API.
--export([start_link/4, call/2, is_burnt/1, stop/1]).
+-export([start_link/5, call/2, is_burnt/1, stop/1]).
 
 %% Gen server callbacks.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
@@ -36,18 +36,17 @@
 
 -record(state, {data=false, burnt=false, timeouts=[], start_timeouts=[],
                 probe=none, owner=none, ignore_exits_pids=[],
-                timeout_ref=none}).
+                timeout_ref=none, log=none}).
 
 -type timeout_entry() :: timeout_count() | timeout_val().
 -type timeout_val()   :: integer().
 -type timeout_count() :: {integer(), integer()}.
 
 %%%_* API ==============================================================
--spec start_link(any(), [timeout_entry()], fun(), pid()) -> ignore |
-                                                            {error, _} |
-                                                            {ok, pid()}.
-start_link(Init, Timeouts, Probe, Owner) ->
-  gen_server:start_link(?MODULE, [Init, Timeouts, Probe, Owner], []).
+-spec start_link(any(), [timeout_entry()], fun(), pid(), fun()) ->
+                    ignore | {error, _} | {ok, pid()}.
+start_link(Init, Timeouts, Probe, Owner, LogFun) ->
+  gen_server:start_link(?MODULE, [Init, Timeouts, Probe, Owner, LogFun], []).
 
 -spec call(pid(), fun()) -> {available, _} | {unavailable, _} |
                             {error, fuse_burnt}.
@@ -71,14 +70,14 @@ is_burnt(Fuse) ->
 stop(Fuse) -> gen_server:call(Fuse, stop).
 
 %%%_* Gen server callbacks =============================================
-init([Init, Timeouts, Probe, Owner]) ->
+init([Init, Timeouts, Probe, Owner, LogFun]) ->
   process_flag(trap_exit, true),
   UserData = case is_function(Init) of
                true  -> Init();
                false -> Init
              end,
   {ok, #state{data=UserData, timeouts=Timeouts, start_timeouts=Timeouts,
-              probe=Probe, owner=Owner}}.
+              probe=Probe, owner=Owner, log=LogFun}}.
 
 handle_call(check_burnt, _From, #state{data=UserData, burnt=Burnt} = State) ->
   {reply, {ok, {Burnt, UserData}}, State};
@@ -95,8 +94,12 @@ handle_info({'EXIT', Pid, _}, #state{owner=Owner} = State) ->
   true = Pid =/= Owner,
   {noreply, State};
 handle_info({timeout, TmoRef}, #state{burnt=true,
-                                      timeout_ref=TmoRef} = State)  ->
-  probe(State).
+                                      timeout_ref=TmoRef} = State) ->
+  {noreply, probe(State)};
+handle_info(Msg, #state{log=L} = State)  ->
+  L("fuse: Received unknown message (message=~p, pid=~p, state=~p).",
+    [Msg, self(), State]),
+  {noreply, State}.
 
 terminate(_Reason, _State) -> ok.
 
@@ -127,12 +130,12 @@ probe(State) ->
 
 probe_succeeded(State) ->
   notify_owner(State),
-  {noreply, reset_timeouts(State#state{burnt=false})}.
+  reset_timeouts(State#state{burnt=false}).
 
 probe_failed(State) ->
   {Tmo, State1} = update_timeouts(State),
   erlang:send_after(Tmo, self(), {timeout, State1#state.timeout_ref}),
-  {noreply, State1}.
+  State1.
 
 %%%_* Eunit ============================================================
 -ifdef(TEST).

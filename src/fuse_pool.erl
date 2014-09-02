@@ -53,7 +53,8 @@ init([FuseData, QueueTmo, LogFun]) -> init(FuseData, QueueTmo, LogFun).
 
 init(FuseData, QueueTmo, LogFun) ->
   A = lists:map(fun({Init, Tmos, Probe}) ->
-                    {ok, Fuse} = fuse:start_link(Init, Tmos, Probe, self()),
+                    {ok, Fuse} = fuse:start_link(Init, Tmos, Probe, self(),
+                                                 LogFun),
                     Fuse
                 end, FuseData),
   erlang:send_after(?PRUNE_PERIOD, self(), prune),

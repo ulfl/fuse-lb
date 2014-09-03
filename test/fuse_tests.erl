@@ -7,7 +7,7 @@
 call_not_burnt_test() ->
   {ok, F} = fuse:start_link(my_data, [500], fun(my_data) ->
                                                 {available, my_data}
-                                            end, self()),
+                                            end, self(), fun(_, _) -> ok end),
   ?assertEqual({available, value}, fuse:call(F, fun(my_data) ->
                                                     {available, value}
                                                 end)),
@@ -16,7 +16,7 @@ call_not_burnt_test() ->
 call_burnt_test() ->
   {ok, F} = fuse:start_link(my_data, [500], fun(my_data) ->
                                                 {available, my_data}
-                                            end, self()),
+                                            end, self(), fun(_, _) -> ok end),
   ?assertEqual({unavailable, someval}, fuse:call(F, fun(my_data) ->
                                                         {unavailable, someval}
                                                     end)),
@@ -37,7 +37,7 @@ call_burnt_multiple_test() ->
                                   21 -> {available, my_data};
                                   _  -> {unavailable, my_data}
                                 end
-                            end, self()),
+                            end, self(), fun(_, _) -> ok end),
   ?assertEqual({unavailable, someval}, fuse:call(F, fun(my_data) ->
                                                         {unavailable, someval}
                                                     end)),
@@ -57,7 +57,7 @@ call_burnt_multiple_test() ->
 update_state_test() ->
   {ok, F} = fuse:start_link(start_state, [50], fun(start_state) ->
                                                    {available, new_state}
-                                               end, self()),
+                                               end, self(), fun(_, _) -> ok end),
   ?assertEqual({unavailable, someval}, fuse:call(F, fun(start_state) ->
                                                         {unavailable, someval}
                                                     end)),

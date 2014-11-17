@@ -29,22 +29,22 @@ start_link(FuseData, QueueTmo) ->
 start_link(FuseData, QueueTmo, Log) ->
   gen_server:start_link(?MODULE, [FuseData, QueueTmo, Log], []).
 
--spec call(pid(), fun()) -> {ok, any()} | {error, fuse_pool_queue_tmo}.
+-spec call(pid() | atom(), fun()) -> {ok, any()} | {error, fuse_pool_queue_tmo}.
 call(Pool, Fun) -> gen_server:call(Pool, {do_work, Fun}, infinity).
 
--spec num_fuses_active(pid()) -> integer().
+-spec num_fuses_active(pid() | atom()) -> integer().
 num_fuses_active(Pool) ->
   L0 = gen_server:call(Pool, get_all),
   L1 = lists:filter(fun(X) -> not fuse:is_burnt(X) end, L0),
   length(L1).
 
--spec num_workers_idle(pid()) -> integer().
+-spec num_workers_idle(pid() | atom()) -> integer().
 num_workers_idle(Pool) -> gen_server:call(Pool, get_num_available).
 
--spec num_jobs_queued(pid()) -> integer().
+-spec num_jobs_queued(pid() | atom()) -> integer().
 num_jobs_queued(Pool) -> gen_server:call(Pool, get_num_queued).
 
--spec stop(pid()) -> any().
+-spec stop(pid() | atom()) -> any().
 stop(Lb) -> gen_server:call(Lb, stop).
 
 %%%_* Gen server callbacks =============================================

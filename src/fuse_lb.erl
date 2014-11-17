@@ -30,8 +30,8 @@ start_link(FuseData, Algorithm) ->
 start_link(FuseData, Algorithm, Log) ->
   gen_server:start_link(?MODULE, [FuseData, Algorithm, Log], []).
 
--spec call(pid(), fun()) -> {ok, any()} | {error, fuse_burnt} |
-                            {error, no_fuses_left}.
+-spec call(pid() | atom(), fun()) -> {ok, any()} | {error, fuse_burnt} |
+                                     {error, no_fuses_left}.
 call(Lb, Fun) ->
   {ok, Fuse} = gen_server:call(Lb, get_fuse),
   case Fuse of
@@ -44,10 +44,10 @@ call(Lb, Fun) ->
       end
   end.
 
--spec num_fuses_active(pid()) -> integer().
+-spec num_fuses_active(pid() | atom()) -> integer().
 num_fuses_active(Lb) -> gen_server:call(Lb, num_fuses_active).
 
--spec stop(pid()) -> any().
+-spec stop(pid() | atom()) -> any().
 stop(Lb) -> gen_server:call(Lb, stop).
 
 %%%_* Gen server callbacks =============================================

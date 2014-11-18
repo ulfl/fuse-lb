@@ -48,8 +48,8 @@
 start_link(Init, Timeouts, Probe, Owner, LogFun) ->
   gen_server:start_link(?MODULE, [Init, Timeouts, Probe, Owner, LogFun], []).
 
--spec call(pid(), fun()) -> {available, _} | {unavailable, _} |
-                            {error, fuse_burnt}.
+-spec call(pid() | atom(), fun()) -> {available, _} | {unavailable, _} |
+                                     {error, fuse_burnt}.
 call(Fuse, Fun) ->
   {ok, {Burnt, UserData}} = gen_server:call(Fuse, check_burnt),
   case Burnt of
@@ -61,12 +61,12 @@ call(Fuse, Fun) ->
     true -> {error, fuse_burnt}
   end.
 
--spec is_burnt(pid()) -> boolean().
+-spec is_burnt(pid() | atom()) -> boolean().
 is_burnt(Fuse) ->
   {ok, {Burnt, _}} = gen_server:call(Fuse, check_burnt),
   Burnt.
 
--spec stop(pid()) -> any().
+-spec stop(pid() | atom()) -> any().
 stop(Fuse) -> gen_server:call(Fuse, stop).
 
 %%%_* Gen server callbacks =============================================

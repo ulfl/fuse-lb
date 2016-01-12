@@ -16,7 +16,10 @@
 %% 'available' is the fuses that are not burnt and not in use. 'queue'
 %% is jobs waiting for an available fuse. 'tmo' is the max amount of
 %% seconds a job should be allowed in the queue. 'log' is the log fun.
--record(state, {all=[], available=[], queue=queue:new(), tmo=none, log=none}).
+%% ## 'worker_shortage' is set to true if queuing has been started.
+-record(state, {all=[], available=[], queue=queue:new(), tmo=none, log=none,
+                worker_shortage=false
+               }).
 
 %%%_* API ==============================================================
 -spec start_link([{any(), fuse:timeout_entry(), fun()}], integer()) ->
@@ -62,9 +65,11 @@ init(FuseData, QueueTmo, LogFun) ->
 
 handle_call({do_work, Fun}, From, #state{available=[F | T], log=Log} = S) ->
   spawn_work(From, F, Fun, Log),
-  {noreply, S#state{available=T}};
+  {noreply, S#state{available=T, worker_shortage=false}};
 handle_call({do_work, Fun}, From, #state{available=[], queue=Q} = S) ->
-  {noreply, S#state{queue=queue:in({From, Fun, now()}, Q)}};
+  log_worker_shortage(S),
+  NewQ = queue:in({From, Fun, now()}, Q),
+  {noreply, S#state{queue=NewQ, worker_shortage=true}};
 handle_call(get_all, _From, #state{all=All} = S) ->
   {reply, All, S};
 handle_call(get_num_available, _From, #state{available=Available} = S) ->
@@ -128,3 +133,8 @@ add_back_fuse(Fuse, #state{available=A, queue=Q0, log=Log} = S) ->
       spawn_work(From, Fuse, Fun, Log),
       S#state{available=A, queue=Q}
   end.
+
+log_worker_shortage(#state{worker_shortage=false, log=Log}) ->
+  Log("fuse_pool: No fuse available. Operation queueing started.", []);
+log_worker_shortage(_State)                                   ->
+  ok.

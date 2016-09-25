@@ -63,12 +63,11 @@ init([FusesConfig, Algorithm, LogFun]) ->
   init(FusesConfig, Algorithm, LogFun).
 
 init(FusesConfig, Algorithm, LogFun) ->
-  Fuses0 = lists:map(fun(FuseData) ->
-                         {ok, Fuse} = fuse:start_link(FuseData, self(), LogFun),
-                         Fuse
-                     end, FusesConfig),
-  Fuses = initial_sort(Algorithm, Fuses0),
-  {ok, #state{algorithm=Algorithm, available=Fuses, log=LogFun}}.
+  lists:map(fun(FuseData) ->
+                {ok, Fuse} = fuse:start_link(FuseData, self(), LogFun),
+                Fuse
+            end, FusesConfig),
+  {ok, #state{algorithm=Algorithm, available=[], log=LogFun}}.
 
 handle_call(get_fuse, _From, #state{algorithm=Algorithm,
                                     available=Available0} = S) ->
@@ -96,12 +95,8 @@ terminate(_Reason, _State) -> ok.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 %%%_* Internal =========================================================
-initial_sort(round_robin, L) -> L;
-initial_sort(prio, L)        -> lists:sort(L).
-
 pick(_, [])                -> {no_fuses_left, []};
 pick(round_robin, [H | T]) -> {H, T ++ [H]};
 pick(prio, [H | _T] = L)   -> {H, L}.
 
-add_back(round_robin, F, Available) -> Available ++ [F];
-add_back(prio, F, Available) -> lists:sort([F | Available]).
+add_back(_, F, Available) -> lists:sort([F | Available]).

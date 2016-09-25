@@ -5,10 +5,16 @@
 
 -define(ae(X, Y), ?assertEqual(X, Y)).
 
+give_time_to_initialize_fuses() -> timer:sleep(10).
+
+probe_available(FuseNum) ->
+  timer:sleep(random:uniform(4)),
+  {available, FuseNum}.
+
 %% Four workers in pool (w1, w2, w3, w4). Load balancer over two boxes
 %% (b1, b2).
 pool_in_front_of_lb_test() ->
-  Probe = fun(X) -> {available, X} end,
+  Probe = fun probe_available/1,
   Tmos = [1000],
   Log = fun(F, A) -> ?debugFmt(F, A) end,
   {ok, P} = fuse_pool:start_link([{w1, Tmos, Probe}, {w2, Tmos, Probe},
@@ -16,6 +22,7 @@ pool_in_front_of_lb_test() ->
                                  5000, Log),
   {ok, Lb} = fuse_lb:start_link([{b1, Tmos, Probe}, {b2, Tmos, Probe}],
                                 round_robin, Log),
+  give_time_to_initialize_fuses(),
 
   Work = fun(D) -> timer:sleep(1000), {available, D} end,
   LbCall = fun(_) ->
@@ -35,13 +42,14 @@ pool_in_front_of_lb_test() ->
   w(6).
 
 lb_in_front_of_pools_test() ->
-  Probe = fun(X) -> {available, X} end,
+  Probe = fun probe_available/1,
   Tmos = [1000],
   Log = fun(F, A) -> ?debugFmt(F, A) end,
   {ok, Lb} = fuse_lb:start_link([{b1, Tmos, Probe}, {b2, Tmos, Probe}],
                                 round_robin, Log),
   {ok, P} = fuse_pool:start_link([{w1, Tmos, Probe}, {w2, Tmos, Probe}], 5000,
                                  Log),
+  give_time_to_initialize_fuses(),
 
   Work = fun(D) -> timer:sleep(1000), {available, D} end,
   PoolCall = fun(Box) ->
@@ -55,7 +63,7 @@ lb_in_front_of_pools_test() ->
   ?ae({ok, {b2, w1}}, fuse_lb:call(Lb, PoolCall)).
 
 lb_in_front_of_pools_async_test() ->
-  Probe = fun(X) -> {available, X} end,
+  Probe = fun probe_available/1,
   Tmos = [1000],
   Log = fun(F, A) -> ?debugFmt(F, A) end,
   {ok, P1} = fuse_pool:start_link([{p1w1, Tmos, Probe}, {p1w2, Tmos, Probe}],
@@ -65,6 +73,7 @@ lb_in_front_of_pools_async_test() ->
   {ok, Lb} = fuse_lb:start_link([{{b1, P1}, Tmos, Probe},
                                  {{b2, P2}, Tmos, Probe}],
                                 round_robin, Log),
+  give_time_to_initialize_fuses(),
 
   Work = fun(D) -> timer:sleep(500), {available, D} end,
   PoolCall = fun({Box, Pool}) ->

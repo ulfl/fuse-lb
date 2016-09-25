@@ -71,7 +71,7 @@ init(FusesConfig, QueueTmo, LogFun) ->
                     Fuse
                 end, FusesConfig),
   erlang:send_after(?PRUNE_PERIOD, self(), prune),
-  {ok, #state{all=A, available=A, tmo=QueueTmo, log=LogFun}}.
+  {ok, #state{all=A, available=[], tmo=QueueTmo, log=LogFun}}.
 
 handle_call({do_work, Fun}, From, #state{available=[F | T], log=Log} = S) ->
   spawn_work(From, F, Fun, Log),
@@ -137,7 +137,7 @@ spawn_work(From, Fuse, Fun, Log) ->
 add_back_fuse(Fuse, #state{available=A, queue=Q0, log=Log} = S) ->
   case queue:is_empty(Q0) of
     true  ->
-      S#state{available=[Fuse | A]};
+      S#state{available=lists:sort([Fuse | A])};
     false ->
       {{value, {From, Fun, _Ts}}, Q} = queue:out(Q0),
       spawn_work(From, Fuse, Fun, Log),

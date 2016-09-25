@@ -61,6 +61,8 @@ Requires rebar in your path.
 
 # TODO
 
+* Review logging.
+* See if spawn_work can be removed.
 * Upgrade to R18 and move away from erlang:now().
 * Switch to rebar3.
 

@@ -29,9 +29,9 @@
 
 -export_type([fuse_data/0, timeout_entry/0]).
 
--record(state, {data=false, burnt=false, timeouts=[], start_timeouts=[],
-                probe=none, owner=none, ignore_exits_pids=[],
-                timeout_ref=none, log=none}).
+-record(state, {data=false, burnt=true, timeouts=[], start_timeouts=[],
+                probe=undefined, owner=undefined, ignore_exits_pids=[],
+                timeout_ref=undefined, log=undefined}).
 
 %% fuse_data() is the end user configurable aspects of a fuse. The tuple
 %% consists of user state data, a back-off configuration, and a prope
@@ -76,8 +76,9 @@ init([{Init, Timeouts, Probe}, Owner, LogFun]) ->
                true  -> Init();
                false -> Init
              end,
+  erlang:send(self(), {timeout, TmoRef = make_ref()}),
   {ok, #state{data=UserData, timeouts=Timeouts, start_timeouts=Timeouts,
-              probe=Probe, owner=Owner, log=LogFun}}.
+              probe=Probe, owner=Owner, log=LogFun, timeout_ref=TmoRef}}.
 
 handle_call(check_burnt, _From, #state{data=UserData, burnt=Burnt} = State) ->
   {reply, {ok, {Burnt, UserData}}, State};

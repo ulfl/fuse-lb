@@ -4,49 +4,58 @@
 -include_lib("eunit/include/eunit.hrl").
 
 %%%_* Tests ============================================================
+
+probe_available(state_data) ->
+  timer:sleep(random:uniform(4)),
+  {available, state_data}.
+
+give_time_to_initialize_fuses() -> timer:sleep(7).
+
 call_not_burnt_test() ->
-  {ok, F} = fuse:start_link({my_data, [500], fun(my_data) ->
-                                                 {available, my_data}
-                                             end}, self(), fun(_, _) -> ok end),
-  ?assertEqual({available, value}, fuse:call(F, fun(my_data) ->
+  {ok, F} = fuse:start_link({state_data, [500], fun probe_available/1},
+                            self(), fun(_, _) -> ok end),
+  give_time_to_initialize_fuses(),
+  ?assertEqual({available, value}, fuse:call(F, fun(state_data) ->
                                                     {available, value}
                                                 end)),
   fuse:stop(F).
 
 call_burnt_test() ->
-  {ok, F} = fuse:start_link({my_data, [500], fun(my_data) ->
-                                                 {available, my_data}
-                                             end}, self(), fun(_, _) -> ok end),
-  ?assertEqual({unavailable, someval}, fuse:call(F, fun(my_data) ->
+  {ok, F} = fuse:start_link({state_data, [500], fun probe_available/1},
+                            self(), fun(_, _) -> ok end),
+  give_time_to_initialize_fuses(),
+  ?assertEqual({unavailable, someval}, fuse:call(F, fun(state_data) ->
                                                         {unavailable, someval}
                                                     end)),
-  ?assertEqual({error, fuse_burnt}, fuse:call(F, fun(my_data) ->
+  ?assertEqual({error, fuse_burnt}, fuse:call(F, fun(state_data) ->
                                                      error(should_not_be_called)
                                                  end)),
   timer:sleep(600),
-  ?assertEqual({available, value}, fuse:call(F, fun(my_data) ->
+  ?assertEqual({available, value}, fuse:call(F, fun(state_data) ->
                                                     {available, value}
                                                 end)),
   fuse:stop(F).
 
 call_burnt_multiple_test() ->
   Cnt = fuse_misc:make_counter(),
-  {ok, F} = fuse:start_link({my_data, [{1, 10}, {10, 10}, 50],
-                             fun(my_data) ->
+  {ok, F} = fuse:start_link({init_state_data, [{1, 10}, {10, 10}, 50],
+                             fun(init_state_data) -> {available, state_data};
+                                (state_data)      ->
                                  case Cnt(inc) of
-                                   21 -> {available, my_data};
-                                   _  -> {unavailable, my_data}
+                                   21 -> {available, state_data};
+                                   _  -> {unavailable, state_data}
                                  end
                              end}, self(), fun(_, _) -> ok end),
-  ?assertEqual({unavailable, someval}, fuse:call(F, fun(my_data) ->
+  give_time_to_initialize_fuses(),
+  ?assertEqual({unavailable, someval}, fuse:call(F, fun(state_data) ->
                                                         {unavailable, someval}
                                                     end)),
-  ?assertEqual({error, fuse_burnt}, fuse:call(F, fun(my_data) ->
+  ?assertEqual({error, fuse_burnt}, fuse:call(F, fun(state_data) ->
                                                      error(should_not_be_called)
                                                  end)),
   timer:sleep(200),
   ?assertEqual(22, Cnt(get)),
-  ?assertEqual({available, value}, fuse:call(F, fun(my_data) ->
+  ?assertEqual({available, value}, fuse:call(F, fun(state_data) ->
                                                     {available, value}
                                                 end)),
   receive
@@ -55,13 +64,16 @@ call_burnt_multiple_test() ->
   fuse:stop(F).
 
 update_state_test() ->
-  {ok, F} = fuse:start_link({start_state, [50], fun(start_state) ->
-                                                    {available, new_state}
-                                                end}, self(), fun(_, _) -> ok end),
-  ?assertEqual({unavailable, someval}, fuse:call(F, fun(start_state) ->
+  Probe = fun(init_data)  -> {available, state_data};
+               (state_data) -> {available, new_state}
+            end,
+  {ok, F} = fuse:start_link({init_data, [50], Probe},
+                            self(), fun(_, _) -> ok end),
+  give_time_to_initialize_fuses(),
+  ?assertEqual({unavailable, someval}, fuse:call(F, fun(state_data) ->
                                                         {unavailable, someval}
                                                     end)),
-  ?assertEqual({error, fuse_burnt}, fuse:call(F, fun(start_state) ->
+  ?assertEqual({error, fuse_burnt}, fuse:call(F, fun(state_data) ->
                                                      error(should_not_be_called)
                                                  end)),
   timer:sleep(100),
@@ -77,10 +89,10 @@ update_state_test() ->
 %% that it is less than 4 times as expensive as calling a fun.
 %% perf_test() ->
 %%   N = 10000,
-%%   {ok, F} = fuse:start_link(my_data, [{1, 10}, {10, 10}, 50],
-%%                             fun(my_data) -> {available, my_data} end, self()),
-%%   Fun = fun(my_data) -> {available, val} end,
-%%   {T1, V1} = best_of_five(fun() -> fuse_misc:pmap(fun(_) -> Fun(my_data) end,
+%%   {ok, F} = fuse:start_link(state_data, [{1, 10}, {10, 10}, 50],
+%%                             fun(state_data) -> {available, state_data} end, self()),
+%%   Fun = fun(state_data) -> {available, val} end,
+%%   {T1, V1} = best_of_five(fun() -> fuse_misc:pmap(fun(_) -> Fun(state_data) end,
 %%                                                   lists:seq(1, N))
 %%                           end),
 

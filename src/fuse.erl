@@ -1,4 +1,4 @@
-%% Copyright (c) 2014 Ulf Leopold.
+%% Copyright (c) 2014-2016 Ulf Leopold.
 %%
 %% A fuse is implemented as a process. It is created using:
 %%

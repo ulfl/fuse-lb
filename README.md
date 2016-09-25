@@ -1,11 +1,9 @@
-Fuse-LB
-=======
+# Fuse-LB
 
 Simple Erlang application for load balancing requests to a pool of
 resources. Handling retries in case of failures.
 
-Building
---------
+## Building
 
 ### Dependencies
 Requires rebar in your path.
@@ -14,14 +12,12 @@ Requires rebar in your path.
 
     $ make
 
-Running unit tests
-------------------
+## Running unit tests
 
     $ make eunit
 
 
-Example
--------
+## Example
 
     > Probe = fun(X) -> {available, X} end.
     #Fun<erl_eval.6.82930912>
@@ -62,4 +58,4 @@ Example
     > fuse_lb:call(Lb, fun(Data) -> {available, Data} end).
     {ok,user_data3}
 
-Fuse-LB: Copyright (c) 2014 Ulf Leopold.
+Fuse-LB: Copyright (c) 2014-2016 Ulf Leopold.

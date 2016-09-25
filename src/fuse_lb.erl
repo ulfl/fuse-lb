@@ -1,4 +1,4 @@
-%% Copyright (c) 2014 Ulf Leopold.
+%% Copyright (c) 2014-2016 Ulf Leopold.
 %%
 %% The load balancer is configured with a pool of fuses. It will
 %% dispatch requests via them using the selected algorithm. If a fuse

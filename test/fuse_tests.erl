@@ -1,4 +1,4 @@
-%% Copyright (c) 2014 Ulf Leopold.
+%% Copyright (c) 2014-2016 Ulf Leopold.
 -module(fuse_tests).
 
 -include_lib("eunit/include/eunit.hrl").

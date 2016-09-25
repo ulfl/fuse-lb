@@ -4,10 +4,7 @@
 
 -include_lib("eunit/include/eunit.hrl").
 
-%%%_* Exports ==========================================================
--export([make_counter/0,
-         pmap/2
-        ]).
+-export([make_counter/0, pmap/2]).
 
 %%%_* API ==============================================================
 make_counter() ->

@@ -2,11 +2,9 @@
 -module(fuse_pool).
 -behaviour(gen_server).
 
-%% API.
 -export([start_link/2, start_link/3, call/2, num_fuses_active/1,
          num_workers_idle/1, num_jobs_queued/1, stop/1]).
 
-%% Gen server callbacks.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
@@ -16,10 +14,9 @@
 %% 'available' is the fuses that are not burnt and not in use. 'queue'
 %% is jobs waiting for an available fuse. 'tmo' is the max amount of
 %% seconds a job should be allowed in the queue. 'log' is the log fun.
-%% ## 'worker_shortage' is set to true if queuing has been started.
+%% 'worker_shortage' is set to true if queuing has been started.
 -record(state, {all=[], available=[], queue=queue:new(), tmo=none, log=none,
-                worker_shortage=false
-               }).
+                worker_shortage=false}).
 
 %%%_* API ==============================================================
 -spec start_link([{any(), fuse:timeout_entry(), fun()}], integer()) ->

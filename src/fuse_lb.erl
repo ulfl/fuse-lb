@@ -8,10 +8,8 @@
 -module(fuse_lb).
 -behaviour(gen_server).
 
-%% API.
 -export([start_link/2, start_link/3, call/2, num_fuses_active/1, stop/1]).
 
-%% Gen server callbacks.
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 

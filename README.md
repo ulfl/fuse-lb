@@ -58,4 +58,10 @@ Requires rebar in your path.
     > fuse_lb:call(Lb, fun(Data) -> {available, Data} end).
     {ok,user_data3}
 
+
+# TODO
+
+* Upgrade to R18 and move away from erlang:now().
+* Switch to rebar3.
+
 Fuse-LB: Copyright (c) 2014-2016 Ulf Leopold.

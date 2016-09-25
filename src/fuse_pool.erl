@@ -1,4 +1,10 @@
 %% Copyright (c) 2014-2016 Ulf Leopold.
+%%
+%% Similarly to fuse_lb, fuse_pool is configured with a set of fuses and
+%% it will dispatch work requests via them. Fuse_pool will only allow a
+%% single outstanding work request per fuse. If all fuses are busy, then
+%% work requests will wait (up until 'QueueTmo' milliseconds) until
+%% a fuse becomes available and the work request can be handled.
 -module(fuse_pool).
 -behaviour(gen_server).
 

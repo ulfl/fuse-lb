@@ -1,10 +1,12 @@
 %% Copyright (c) 2014-2016 Ulf Leopold.
 %%
-%% The load balancer is configured with a pool of fuses. It will
-%% dispatch requests via them using the selected algorithm. If a fuse
-%% burns it will be removed from the pool. Once the fuse is active again
-%% it will notify the LB and be included in the pool. Different load
-%% balancing algorithms can be used such as round_robin or prio.
+%% Fuse_lb is configured with a set of fuses. It will dispatch work
+%% requests via them using the selected algorithm. If a fuse burns it
+%% will be removed from the set. Once the fuse is mended it will again
+%% be included in the set. Different load balancing algorithms can be
+%% used such as round_robin or prio. Fuse_lb does not impose a limit on
+%% the number of simultaneous ongoing requests per fuse. If you need
+%% such a limit, then instead use fuse_pool.
 -module(fuse_lb).
 -behaviour(gen_server).
 

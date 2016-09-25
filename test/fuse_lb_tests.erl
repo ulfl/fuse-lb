@@ -112,17 +112,17 @@ round_robin_backoff_test() ->
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(UserData) -> {available, UserData} end)),
   ?ae({ok, 1}, fuse_lb:call(Lb, fun(UserData) -> {unavailable, UserData} end)),
 
-  timer:sleep(22),
+  timer:sleep(23),
   ?ae(3, Cnt(get)),
   ?ae({ok, 2}, fuse_lb:call(Lb, fun(UserData) -> {available, UserData} end)),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(UserData) -> {available, UserData} end)),
 
-  timer:sleep(52),
+  timer:sleep(53),
   ?ae(4, Cnt(get)),
   ?ae({ok, 2}, fuse_lb:call(Lb, fun(UserData) -> {available, UserData} end)),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(UserData) -> {available, UserData} end)),
 
-  timer:sleep(502),
+  timer:sleep(503),
   ?ae(5, Cnt(get)),
   ?ae({ok, 2}, fuse_lb:call(Lb, fun(UserData) -> {available, UserData} end)),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(UserData) -> {available, UserData} end)),

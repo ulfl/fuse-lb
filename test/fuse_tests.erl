@@ -5,18 +5,18 @@
 
 %%%_* Tests ============================================================
 call_not_burnt_test() ->
-  {ok, F} = fuse:start_link(my_data, [500], fun(my_data) ->
-                                                {available, my_data}
-                                            end, self(), fun(_, _) -> ok end),
+  {ok, F} = fuse:start_link({my_data, [500], fun(my_data) ->
+                                                 {available, my_data}
+                                             end}, self(), fun(_, _) -> ok end),
   ?assertEqual({available, value}, fuse:call(F, fun(my_data) ->
                                                     {available, value}
                                                 end)),
   fuse:stop(F).
 
 call_burnt_test() ->
-  {ok, F} = fuse:start_link(my_data, [500], fun(my_data) ->
-                                                {available, my_data}
-                                            end, self(), fun(_, _) -> ok end),
+  {ok, F} = fuse:start_link({my_data, [500], fun(my_data) ->
+                                                 {available, my_data}
+                                             end}, self(), fun(_, _) -> ok end),
   ?assertEqual({unavailable, someval}, fuse:call(F, fun(my_data) ->
                                                         {unavailable, someval}
                                                     end)),
@@ -31,13 +31,13 @@ call_burnt_test() ->
 
 call_burnt_multiple_test() ->
   Cnt = fuse_misc:make_counter(),
-  {ok, F} = fuse:start_link(my_data, [{1, 10}, {10, 10}, 50],
-                            fun(my_data) ->
-                                case Cnt(inc) of
-                                  21 -> {available, my_data};
-                                  _  -> {unavailable, my_data}
-                                end
-                            end, self(), fun(_, _) -> ok end),
+  {ok, F} = fuse:start_link({my_data, [{1, 10}, {10, 10}, 50],
+                             fun(my_data) ->
+                                 case Cnt(inc) of
+                                   21 -> {available, my_data};
+                                   _  -> {unavailable, my_data}
+                                 end
+                             end}, self(), fun(_, _) -> ok end),
   ?assertEqual({unavailable, someval}, fuse:call(F, fun(my_data) ->
                                                         {unavailable, someval}
                                                     end)),
@@ -55,9 +55,9 @@ call_burnt_multiple_test() ->
   fuse:stop(F).
 
 update_state_test() ->
-  {ok, F} = fuse:start_link(start_state, [50], fun(start_state) ->
-                                                   {available, new_state}
-                                               end, self(), fun(_, _) -> ok end),
+  {ok, F} = fuse:start_link({start_state, [50], fun(start_state) ->
+                                                    {available, new_state}
+                                                end}, self(), fun(_, _) -> ok end),
   ?assertEqual({unavailable, someval}, fuse:call(F, fun(start_state) ->
                                                         {unavailable, someval}
                                                     end)),

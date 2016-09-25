@@ -1,6 +1,6 @@
 .PHONY:	all compile get-deps eunit clean
 
-all: get-deps compile
+all: get-deps compile check
 
 compile:
 	rebar compile

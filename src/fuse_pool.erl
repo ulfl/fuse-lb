@@ -5,6 +5,12 @@
 %% single outstanding work request per fuse. If all fuses are busy, then
 %% work requests will wait (up until 'QueueTmo' milliseconds) until
 %% a fuse becomes available and the work request can be handled.
+%%
+%% When initializing a fuse_pool a [fuse:fuse_data()] list is provided
+%% with config for the respective fuse. It contains the fuse user data,
+%% probe back-off schedule, and the probe function. Fuses start out in a
+%% burnt state which means that they will call the probe function to
+%% initialize themselves.
 -module(fuse_pool).
 -behaviour(gen_server).
 
@@ -25,15 +31,15 @@
                 worker_shortage=false}).
 
 %%%_* API ==============================================================
--spec start_link([{any(), fuse:timeout_entry(), fun()}], integer()) ->
+-spec start_link([fuse:fuse_data()], integer()) ->
                     ignore | {error, _} | {ok, pid()}.
-start_link(FuseData, QueueTmo) ->
-  gen_server:start_link(?MODULE, [FuseData, QueueTmo], []).
+start_link(FusesConfig, QueueTmo) ->
+  gen_server:start_link(?MODULE, [FusesConfig, QueueTmo], []).
 
--spec start_link([{any(), fuse:timeout_entry(), fun()}], integer(),
+-spec start_link([fuse:fuse_data()], integer(),
                  fun()) -> ignore | {error, _} | {ok, pid()}.
-start_link(FuseData, QueueTmo, Log) ->
-  gen_server:start_link(?MODULE, [FuseData, QueueTmo, Log], []).
+start_link(FusesConfig, QueueTmo, Log) ->
+  gen_server:start_link(?MODULE, [FusesConfig, QueueTmo, Log], []).
 
 -spec call(pid() | atom(), fun()) -> {ok, any()} | {error, fuse_pool_queue_tmo}.
 call(Pool, Fun) -> gen_server:call(Pool, {do_work, Fun}, infinity).
@@ -54,15 +60,16 @@ num_jobs_queued(Pool) -> gen_server:call(Pool, get_num_queued).
 stop(Lb) -> gen_server:call(Lb, stop).
 
 %%%_* Gen server callbacks =============================================
-init([FuseData, QueueTmo]) -> init(FuseData, QueueTmo,  fun(_, _) -> ok end);
-init([FuseData, QueueTmo, LogFun]) -> init(FuseData, QueueTmo, LogFun).
+init([FusesConfig, QueueTmo]) ->
+  init(FusesConfig, QueueTmo,  fun(_, _) -> ok end);
+init([FusesConfig, QueueTmo, LogFun]) ->
+  init(FusesConfig, QueueTmo, LogFun).
 
-init(FuseData, QueueTmo, LogFun) ->
-  A = lists:map(fun({Init, Tmos, Probe}) ->
-                    {ok, Fuse} = fuse:start_link(Init, Tmos, Probe, self(),
-                                                 LogFun),
+init(FusesConfig, QueueTmo, LogFun) ->
+  A = lists:map(fun(FuseData) ->
+                    {ok, Fuse} = fuse:start_link(FuseData, self(), LogFun),
                     Fuse
-                end, FuseData),
+                end, FusesConfig),
   erlang:send_after(?PRUNE_PERIOD, self(), prune),
   {ok, #state{all=A, available=A, tmo=QueueTmo, log=LogFun}}.
 

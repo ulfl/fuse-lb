@@ -1,19 +1,16 @@
 %% Copyright (c) 2014-2016 Ulf Leopold.
 %%
-%% A fuse is implemented as a process. It is created using:
-%%
-%%    fuse:start_link(UserData, Timeouts, Probe, Owner).
-%%
-%% A fuse can have two states: active or burnt. Using fuse:call(Fuse,
-%% Fun) a given Fun can be executed using the provided Fuse. If the Fuse
-%% is burnt, then Fun won't be called and {error, fuse_burnt} will
-%% instead be returned. If the Fuse is active, then Fun will be called
-%% with UserData as its single argument. Fun must either return:
-%% {available, <return data>} or {unavailable, <return data>} depending
-%% on the availability of the service that Fun relies on. In either case
-%% <return data> is returned to the caller. If "available" was returned,
-%% then the Fuse remains available. If "unavailable" was returned, then
-%% the Fuse changes to state burnt.
+%% A fuse is implemented as a gen_server process. A fuse can have two
+%% states: active or burnt. Using fuse:call(Fuse, Fun) a given Fun can
+%% be executed using the provided Fuse. If the Fuse is burnt, then Fun
+%% won't be called and {error, fuse_burnt} will instead be returned. If
+%% the Fuse is active, then Fun will be called with UserData as its
+%% single argument. Fun must either return: {available, <return data>}
+%% or {unavailable, <return data>} depending on the availability of the
+%% service that Fun relies on. In either case <return data> is returned
+%% to the caller. If 'available' was returned, then the Fuse remains
+%% available. If 'unavailable' was returned, then the Fuse changes to
+%% state burnt.
 %%
 %% A Fuse that is in state burnt will try to recover by periodically
 %% calling the provided Probe function. If the Probe returns {available,
@@ -25,26 +22,31 @@
 -module(fuse).
 -behaviour(gen_server).
 
--export([start_link/5, call/2, is_burnt/1, stop/1]).
+-export([start_link/3, call/2, is_burnt/1, stop/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
--export_type([timeout_entry/0]).
+-export_type([fuse_data/0, timeout_entry/0]).
 
 -record(state, {data=false, burnt=false, timeouts=[], start_timeouts=[],
                 probe=none, owner=none, ignore_exits_pids=[],
                 timeout_ref=none, log=none}).
+
+%% fuse_data() is the end user configurable aspects of a fuse. The tuple
+%% consists of user state data, a back-off configuration, and a prope
+%% function.
+-type fuse_data() :: {any(), fuse:timeout_entry(), fun()}.
 
 -type timeout_entry() :: timeout_count() | timeout_val().
 -type timeout_val()   :: integer().
 -type timeout_count() :: {integer(), integer()}.
 
 %%%_* API ==============================================================
--spec start_link(any(), [timeout_entry()], fun(), pid(), fun()) ->
+-spec start_link(fuse_data(), pid(), fun()) ->
                     ignore | {error, _} | {ok, pid()}.
-start_link(Init, Timeouts, Probe, Owner, LogFun) ->
-  gen_server:start_link(?MODULE, [Init, Timeouts, Probe, Owner, LogFun], []).
+start_link({Init, Timeouts, Probe}, Owner, LogFun) ->
+  gen_server:start_link(?MODULE, [{Init, Timeouts, Probe}, Owner, LogFun], []).
 
 -spec call(pid() | atom(), fun()) -> {available, _} | {unavailable, _} |
                                      {error, fuse_burnt}.
@@ -64,11 +66,11 @@ is_burnt(Fuse) ->
   {ok, {Burnt, _}} = gen_server:call(Fuse, check_burnt),
   Burnt.
 
--spec stop(pid() | atom()) -> any().
+-spec stop(pid() | atom()) -> ok.
 stop(Fuse) -> gen_server:call(Fuse, stop).
 
 %%%_* Gen server callbacks =============================================
-init([Init, Timeouts, Probe, Owner, LogFun]) ->
+init([{Init, Timeouts, Probe}, Owner, LogFun]) ->
   process_flag(trap_exit, true),
   UserData = case is_function(Init) of
                true  -> Init();
@@ -118,10 +120,8 @@ notify_owner(State) -> gen_server:cast(State#state.owner, {re_fuse, self()}).
 probe(State) ->
   Probe = State#state.probe,
   try Probe(State#state.data) of
-      {available, Data}                        ->
-        probe_succeeded(State#state{data=Data});
-      {unavailable, Data}                      ->
-        probe_failed(State#state{data=Data})
+      {available, Data}   -> probe_succeeded(State#state{data=Data});
+      {unavailable, Data} -> probe_failed(State#state{data=Data})
   catch
     _:_ -> probe_failed(State)
   end.

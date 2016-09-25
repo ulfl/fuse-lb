@@ -7,6 +7,12 @@
 %% used such as round_robin or prio. Fuse_lb does not impose a limit on
 %% the number of simultaneous ongoing requests per fuse. If you need
 %% such a limit, then instead use fuse_pool.
+%%
+%% When initializing a fuse_lb a [fuse:fuse_data()] list is provided
+%% with config for the respective fuse. It contains the fuse user data,
+%% probe back-off schedule, and the probe function. Fuses start out in a
+%% burnt state which means that they will call the probe function to
+%% initialize themselves.
 -module(fuse_lb).
 -behaviour(gen_server).
 
@@ -15,20 +21,20 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
-%% Algorithm is the load balancing algorithm to use. Available is the
-%% fuses that are not burnt.
+%% 'algorithm' is the load balancing algorithm to use. 'available' is the
+%% fuses that are not burnt. 'log' is the log fun.
 -record(state, {algorithm=none, available=[], log=none}).
 
 %%%_* API ==============================================================
--spec start_link([{any(), fuse:timeout_entry(), fun()}],
+-spec start_link([fuse:fuse_data()],
                  atom()) -> ignore | {error, _} | {ok, pid()}.
-start_link(FuseData, Algorithm) ->
-  gen_server:start_link(?MODULE, [FuseData, Algorithm], []).
+start_link(FusesConfig, Algorithm) ->
+  gen_server:start_link(?MODULE, [FusesConfig, Algorithm], []).
 
--spec start_link([{any(), fuse:timeout_entry(), fun()}],
+-spec start_link([fuse:fuse_data()],
                  atom(), fun()) -> ignore | {error, _} | {ok, pid()}.
-start_link(FuseData, Algorithm, Log) ->
-  gen_server:start_link(?MODULE, [FuseData, Algorithm, Log], []).
+start_link(FusesConfig, Algorithm, Log) ->
+  gen_server:start_link(?MODULE, [FusesConfig, Algorithm, Log], []).
 
 -spec call(pid() | atom(), fun()) -> {ok, any()} | {error, fuse_burnt} |
                                      {error, no_fuses_left}.
@@ -51,15 +57,16 @@ num_fuses_active(Lb) -> gen_server:call(Lb, num_fuses_active).
 stop(Lb) -> gen_server:call(Lb, stop).
 
 %%%_* Gen server callbacks =============================================
-init([FuseData, Algorithm]) -> init(FuseData, Algorithm, fun(_, _) -> ok end);
-init([FuseData, Algorithm, LogFun]) -> init(FuseData, Algorithm, LogFun).
+init([FusesConfig, Algorithm]) ->
+  init(FusesConfig, Algorithm, fun(_, _) -> ok end);
+init([FusesConfig, Algorithm, LogFun]) ->
+  init(FusesConfig, Algorithm, LogFun).
 
-init(FuseData, Algorithm, LogFun) ->
-  Fuses0 = lists:map(fun({Init, Tmos, Probe}) ->
-                         {ok, Fuse} = fuse:start_link(Init, Tmos, Probe,
-                                                      self(), LogFun),
+init(FusesConfig, Algorithm, LogFun) ->
+  Fuses0 = lists:map(fun(FuseData) ->
+                         {ok, Fuse} = fuse:start_link(FuseData, self(), LogFun),
                          Fuse
-                     end, FuseData),
+                     end, FusesConfig),
   Fuses = initial_sort(Algorithm, Fuses0),
   {ok, #state{algorithm=Algorithm, available=Fuses, log=LogFun}}.
 

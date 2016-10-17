@@ -91,7 +91,9 @@ handle_call(stop, _From, S) ->
 
 handle_cast({available, F}, #state{} = S)  ->
   {noreply, add_back_fuse(F, S)};
-handle_cast({re_fuse, F}, #state{log=L} = S) ->
+handle_cast({fuse_burnt, _F}, #state{} = S) ->
+  {noreply, S};
+handle_cast({fuse_mended, F}, #state{log=L} = S) ->
   L("fuse_pool: Adding refreshed fuse (pid=~p) back to pool.", [F]),
   {noreply, add_back_fuse(F, S)};
 handle_cast(Msg, S) -> {stop, {unexpected_cast, Msg}, S}.
@@ -137,7 +139,7 @@ spawn_work(From, Fuse, Fun, Log) ->
 add_back_fuse(Fuse, #state{available=A, queue=Q0, log=Log} = S) ->
   case queue:is_empty(Q0) of
     true  ->
-      S#state{available=lists:sort([Fuse | A])};
+      S#state{available=lists:usort([Fuse | A])};
     false ->
       {{value, {From, Fun, _Ts}}, Q} = queue:out(Q0),
       spawn_work(From, Fuse, Fun, Log),

@@ -42,20 +42,23 @@ round_robin_failure_test() ->
   ?ae({ok, 2}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 1}, fuse_lb:call(Lb, fun(State) -> {unavailable, State} end)),
+  timer:sleep(1),
   ?ae(2, fuse_lb:num_fuses_active(Lb)),
-  timer:sleep(10),
+  timer:sleep(1),
   ?ae({ok, 2}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 2}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 2}, fuse_lb:call(Lb, fun(State) -> {unavailable, State} end)),
+  timer:sleep(1),
   ?ae(1, fuse_lb:num_fuses_active(Lb)),
-  timer:sleep(10),
+  timer:sleep(1),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(State) -> {unavailable, State} end)),
+  timer:sleep(1),
   ?ae(0, fuse_lb:num_fuses_active(Lb)),
   ?ae({error, no_fuses_left}, fuse_lb:call(Lb, fun(State) ->
                                                    {available, State}
@@ -178,12 +181,15 @@ prio_alg_test() ->
   ?ae({ok, 1}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 1}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 1}, fuse_lb:call(Lb, fun(State) -> {unavailable, State} end)),
+  timer:sleep(1),
   ?ae({ok, 2}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 2}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 2}, fuse_lb:call(Lb, fun(State) -> {unavailable, State} end)),
+  timer:sleep(1),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(State) -> {unavailable, State} end)),
+  timer:sleep(1),
   ?ae({error, no_fuses_left}, fuse_lb:call(Lb, fun(State) ->
                                                    {available, State}
                                                end)),
@@ -200,15 +206,43 @@ prio_alg_failure_test() ->
   ?ae({ok, 1}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 1}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 1}, fuse_lb:call(Lb, fun(State) -> {unavailable, State} end)),
+  timer:sleep(1),
   ?ae({ok, 2}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 2}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 2}, fuse_lb:call(Lb, fun(State) -> {unavailable, State} end)),
+  timer:sleep(1),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 3}, fuse_lb:call(Lb, fun(State) -> {unavailable, State} end)),
+  timer:sleep(1),
   ?ae({error, no_fuses_left}, fuse_lb:call(Lb, fun(State) ->
                                                    {available, State}
                                                end)),
   timer:sleep(3005),
   ?ae({ok, 1}, fuse_lb:call(Lb, fun(State) -> {available, State} end)),
   ?ae({ok, 1}, fuse_lb:call(Lb, fun(State) -> {available, State} end)).
+
+race_test() ->
+  race_helper(10).
+
+race_helper(0) -> ok;
+race_helper(N) ->
+  Probe = fun(X) -> ?debugFmt("probing...", []), {available, X} end,
+  {ok, Lb} = fuse_lb:start_link([{state, [0], Probe}], round_robin,
+                                fun(S, A) -> ?debugFmt(S, A) end),
+  give_time_to_initialize_fuses(),
+
+  fuse_misc:pmap(fun(_) ->
+                     timer:sleep(random:uniform(10)),
+                     fuse_lb:call(Lb,
+                                  fun(State) ->
+                                      timer:sleep(random:uniform(5)),
+                                      {unavailable, State}
+                                  end)
+                 end, lists:seq(1, 20)),
+
+  timer:sleep(50),
+  ?ae(1, fuse_lb:num_fuses_active(Lb)),
+  fuse_lb:stop(Lb),
+  ?debugFmt("----------", []),
+  race_helper(N - 1).

@@ -59,7 +59,10 @@ call_burnt_multiple_test() ->
                                                     {available, value}
                                                 end)),
   receive
-    {_, {re_fuse, F}} -> ok
+    {_, {fuse_burnt, F}} -> ok
+  end,
+  receive
+    {_, {fuse_mended, F}} -> ok
   end,
   fuse:stop(F).
 
@@ -81,7 +84,10 @@ update_state_test() ->
                                                       {available, someval}
                                                   end)),
   receive
-    {_, {re_fuse, F}} -> ok
+    {_, {fuse_burnt, F}} -> ok
+  end,
+  receive
+    {_, {fuse_mended, F}} -> ok
   end,
   fuse:stop(F).
 

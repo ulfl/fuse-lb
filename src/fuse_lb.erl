@@ -45,7 +45,7 @@ call(Lb, Fun) ->
     _ ->
       case fuse:call(Fuse, Fun) of
         {available, X}   -> {ok, X};
-        {unavailable, X} -> gen_server:cast(Lb, {burnt_fuse, Fuse}), {ok, X};
+        {unavailable, X} -> {ok, X};
         {error, fuse_burnt} = E -> E
       end
   end.
@@ -78,13 +78,13 @@ handle_call(num_fuses_active, _From, #state{available=Available} = S) ->
 handle_call(stop, _From, S) ->
   {stop, normal, ok, S}.
 
-handle_cast({burnt_fuse, F}, #state{available=Available, log=L} = S) ->
+handle_cast({fuse_burnt, F}, #state{available=Available, log=L} = S) ->
   L("fuse_lb: Fuse (pid=~p) burnt, removing from pool.", [F]),
   {noreply, S#state{available=Available -- [F]}};
-handle_cast({re_fuse, F}, #state{algorithm=Algorithm, available=Available,
-                                 log=L} = S) ->
+handle_cast({fuse_mended, F}, #state{algorithm=Algorithm, available=Available,
+                                     log=L} = S) ->
   L("fuse_lb: Adding refreshed fuse (pid=~p) back to pool.", [F]),
-  {noreply, S#state{available=add_back(Algorithm, F, Available)}};
+  {noreply, S#state{available=add_back_fuse(Algorithm, F, Available)}};
 handle_cast(stop, S) -> {stop, ok, S};
 handle_cast(Msg, S)  -> {stop, {unexpected_cast, Msg}, S}.
 
@@ -99,4 +99,4 @@ pick(_, [])                -> {no_fuses_left, []};
 pick(round_robin, [H | T]) -> {H, T ++ [H]};
 pick(prio, [H | _T] = L)   -> {H, L}.
 
-add_back(_, F, Available) -> lists:sort([F | Available]).
+add_back_fuse(_, F, Available) -> lists:usort([F | Available]).

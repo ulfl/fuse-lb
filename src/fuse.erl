@@ -10,12 +10,12 @@
 %% service that Fun relies on. In either case <return data> is returned
 %% to the caller. If 'available' was returned, then the Fuse remains
 %% available. If 'unavailable' was returned, then the Fuse changes to
-%% state burnt.
+%% state burnt (and informs its parent with a "fuse_burnt" message).
 %%
 %% A Fuse that is in state burnt will try to recover by periodically
 %% calling the provided Probe function. If the Probe returns {available,
 %% UserData} the Fuse will change back to active state (and notify its
-%% Owner via a "re_fuse" message). If the Probe returns {unavailable,
+%% Owner via a "fuse_mended" message). If the Probe returns {unavailable,
 %% UserData} then it will remain unavailable. How often the Probe is
 %% called is specified by the Timeouts argument. It can be used to
 %% implement back-off.
@@ -89,6 +89,7 @@ handle_cast(burn, #state{burnt=true} = State) -> {noreply, State};
 handle_cast(burn, #state{burnt=false} = State) ->
   {Tmo, State1} = update_timeouts(State),
   erlang:send_after(Tmo, self(), {timeout, TmoRef = make_ref()}),
+  notify_owner_burnt(State),
   {noreply, State1#state{burnt=true, timeout_ref=TmoRef}}.
 
 handle_info({'EXIT', Pid, _}, #state{owner=Owner} = State) ->
@@ -116,7 +117,11 @@ update_timeouts(#state{timeouts=[Tmo]} = State) ->
 
 reset_timeouts(State) -> State#state{timeouts=State#state.start_timeouts}.
 
-notify_owner(State) -> gen_server:cast(State#state.owner, {re_fuse, self()}).
+notify_owner_burnt(State) -> gen_server:cast(State#state.owner,
+                                             {fuse_burnt, self()}).
+
+notify_owner_mended(State) -> gen_server:cast(State#state.owner,
+                                              {fuse_mended, self()}).
 
 probe(State) ->
   Probe = State#state.probe,
@@ -128,7 +133,7 @@ probe(State) ->
   end.
 
 probe_succeeded(State) ->
-  notify_owner(State),
+  notify_owner_mended(State),
   reset_timeouts(State#state{burnt=false}).
 
 probe_failed(State) ->

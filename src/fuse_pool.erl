@@ -25,10 +25,10 @@
 
 %% 'available' is the fuses that are not burnt and not in use. 'queue'
 %% is jobs waiting for an available fuse. 'tmo' is the max amount of
-%% seconds a job should be allowed in the queue. 'log' is the log fun.
-%% 'worker_shortage' is set to true if queuing has been started.
--record(state, {all=[], available=[], queue=queue:new(), tmo=none, log=none,
-                worker_shortage=false}).
+%% milliseconds a job should be allowed in the queue. 'log' is the log
+%% fun. 'worker_shortage' is set to true if queuing has been started.
+-record(state, {all=[], available=[], queue=queue:new(), tmo=undefined,
+                log=undefined, worker_shortage=false}).
 
 %%%_* API ==============================================================
 -spec start_link([fuse:fuse_data()], integer()) ->

@@ -23,7 +23,7 @@
 
 %% 'algorithm' is the load balancing algorithm to use. 'available' is the
 %% fuses that are not burnt. 'log' is the log fun.
--record(state, {algorithm=none, available=[], log=none}).
+-record(state, {algorithm=undefined, available=[], log=undefined}).
 
 %%%_* API ==============================================================
 -spec start_link([fuse:fuse_data()],

@@ -167,7 +167,6 @@ Build and run the unit tests as follows.
 # TODO
 
 * Review logging.
-* See if spawn_work can be removed.
 * Upgrade to R18 and move away from erlang:now().
 * Switch to rebar3.
 

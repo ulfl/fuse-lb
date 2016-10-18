@@ -42,7 +42,19 @@ start_link(FusesConfig, QueueTmo, Log) ->
   gen_server:start_link(?MODULE, [FusesConfig, QueueTmo, Log], []).
 
 -spec call(pid() | atom(), fun()) -> {ok, any()} | {error, fuse_pool_queue_tmo}.
-call(Pool, Fun) -> gen_server:call(Pool, {do_work, Fun}, infinity).
+call(Pool, Fun) ->
+  case gen_server:call(Pool, get_fuse, infinity) of
+    {ok, Fuse} ->
+      try fuse:call(Fuse, Fun) of
+          {available, X} -> gen_server:cast(Pool, {available, Fuse}),
+                            {ok, X};
+          {unavailable, X} -> {ok, X};
+          {error, fuse_burnt} -> error(fuse_burnt)
+      catch
+        _:_ -> gen_server:cast(Pool, {available, Fuse})
+      end;
+    {error, fuse_pool_queue_tmo} = E -> E
+  end.
 
 -spec num_fuses_active(pid() | atom()) -> integer().
 num_fuses_active(Pool) ->
@@ -73,12 +85,11 @@ init(FusesConfig, QueueTmo, LogFun) ->
   erlang:send_after(?PRUNE_PERIOD, self(), prune),
   {ok, #state{all=A, available=[], tmo=QueueTmo, log=LogFun}}.
 
-handle_call({do_work, Fun}, From, #state{available=[F | T], log=Log} = S) ->
-  spawn_work(From, F, Fun, Log),
-  {noreply, S#state{available=T, worker_shortage=false}};
-handle_call({do_work, Fun}, From, #state{available=[], queue=Q} = S) ->
+handle_call(get_fuse, _From, #state{available=[F | T]} = S) ->
+  {reply, {ok, F}, S#state{available=T, worker_shortage=false}};
+handle_call(get_fuse, From, #state{available=[], queue=Q} = S) ->
   log_worker_shortage(S),
-  NewQ = queue:in({From, Fun, now()}, Q),
+  NewQ = queue:in({From, now()}, Q),
   {noreply, S#state{queue=NewQ, worker_shortage=true}};
 handle_call(get_all, _From, #state{all=All} = S) ->
   {reply, All, S};
@@ -91,7 +102,8 @@ handle_call(stop, _From, S) ->
 
 handle_cast({available, F}, #state{} = S)  ->
   {noreply, add_back_fuse(F, S)};
-handle_cast({fuse_burnt, _F}, #state{} = S) ->
+handle_cast({fuse_burnt, F}, #state{log=L} = S) ->
+  L("fuse_pool: Fuse (pid=~p) burnt, removing from pool.", [F]),
   {noreply, S};
 handle_cast({fuse_mended, F}, #state{log=L} = S) ->
   L("fuse_pool: Adding refreshed fuse (pid=~p) back to pool.", [F]),
@@ -99,7 +111,7 @@ handle_cast({fuse_mended, F}, #state{log=L} = S) ->
 handle_cast(Msg, S) -> {stop, {unexpected_cast, Msg}, S}.
 
 handle_info(prune, #state{queue=Q0, tmo=QueueTmo} = S) ->
-  Prune = fun({From, _Fun, Ts}) ->
+  Prune = fun({From, Ts}) ->
               case timer:now_diff(now(), Ts)  > (QueueTmo * 1000) of
                 true  ->
                   gen_server:reply(From, {error, fuse_pool_queue_tmo}),
@@ -119,34 +131,17 @@ terminate(_Reason, _State) -> ok.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 %%%_* Internal =========================================================
-spawn_work(From, Fuse, Fun, Log) ->
-  Pid = self(),
-  spawn_link(
-    fun() ->
-        case fuse:call(Fuse, Fun) of
-          {available, X} ->
-            gen_server:cast(Pid, {available, Fuse}),
-            gen_server:reply(From, {ok, X});
-          {unavailable, X} ->
-            Log("fuse_pool: Fuse (pid=~p) burnt, removing from pool.",
-                [Fuse]),
-            gen_server:reply(From, {ok, X});
-          {error, fuse_burnt} ->
-            error(fuse_burnt)
-        end
-    end).
-
-add_back_fuse(Fuse, #state{available=A, queue=Q0, log=Log} = S) ->
+add_back_fuse(Fuse, #state{available=A, queue=Q0} = S) ->
   case queue:is_empty(Q0) of
     true  ->
       S#state{available=lists:usort([Fuse | A])};
     false ->
-      {{value, {From, Fun, _Ts}}, Q} = queue:out(Q0),
-      spawn_work(From, Fuse, Fun, Log),
+      {{value, {From, _Ts}}, Q} = queue:out(Q0),
+      gen_server:reply(From, {ok, Fuse}),
       S#state{available=A, queue=Q}
   end.
 
-log_worker_shortage(#state{worker_shortage=false, log=Log}) ->
-  Log("fuse_pool: No fuse available. Operation queueing started.", []);
-log_worker_shortage(_State)                                   ->
+log_worker_shortage(#state{worker_shortage=false, log=L}) ->
+  L("fuse_pool: No fuse available. Operation queueing started.", []);
+log_worker_shortage(_State) ->
   ok.

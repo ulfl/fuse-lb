@@ -116,7 +116,7 @@ recovery2_test() ->
 queue_tmo_test() ->
   Probe = fun probe_available/1,
   Tmos = [2000],
-  Work = fun(D) -> timer:sleep(3000), {available, D} end,
+  Work = fun(D) -> timer:sleep(2000 + D*10), {available, D} end,
   {ok, P} = fuse_pool:start_link([{1, Tmos, Probe},
                                   {2, Tmos, Probe}],
                                  1000, fun(F, A) -> ?debugFmt(F, A) end),
@@ -124,7 +124,12 @@ queue_tmo_test() ->
   s(fun() -> ?ae({ok, 1}, fuse_pool:call(P, Work)) end),
   s(fun() -> ?ae({ok, 2}, fuse_pool:call(P, Work)) end),
   s(fun() -> ?ae({error, fuse_pool_queue_tmo}, fuse_pool:call(P, Work)) end),
-  w(3).
+  s(fun() -> ?ae({error, fuse_pool_queue_tmo}, fuse_pool:call(P, Work)) end),
+  s(fun() -> ?ae({error, fuse_pool_queue_tmo}, fuse_pool:call(P, Work)) end),
+  s(fun() -> ?ae({error, fuse_pool_queue_tmo}, fuse_pool:call(P, Work)) end),
+  timer:sleep(1500),
+  s(fun() -> ?ae({ok, 1}, fuse_pool:call(P, Work)) end),
+  w(7).
 
 %%%_* Helpers ==========================================================
 s(Fun) ->

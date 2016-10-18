@@ -138,7 +138,7 @@ If the execution time for workloads via one of the fuses is slower,
 then as seen in this example, the frequency distribution is no longer
 even and the total execution time goes up:
 
-```
+```erlang
 {ok, Pool} = fuse_pool:start_link([{s1, [1000], fun(S) -> {available, S} end},
                                    {s2, [1000], fun(S) -> {available, S} end},
                                    {s3, [1000], fun(S) -> {available, S} end}],

@@ -91,6 +91,16 @@ update_state_test() ->
   end,
   fuse:stop(F).
 
+exception_test() ->
+  {ok, F} = fuse:start_link({state_data, [500], fun probe_available/1},
+                            self(), fun(_, _) -> ok end),
+  give_time_to_initialize_fuses(),
+  ?assertEqual({error, fuse_exception_encountered},
+               fuse:call(F, fun(state_data) ->
+                                error(exception)
+                            end)),
+  fuse:stop(F).
+
 %% Prove that fuse can do at least 10,000 dispatches in a second and
 %% that it is less than 4 times as expensive as calling a fun.
 %% perf_test() ->

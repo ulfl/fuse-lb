@@ -49,14 +49,18 @@ start_link({Init, Timeouts, Probe}, Owner, LogFun) ->
   gen_server:start_link(?MODULE, [{Init, Timeouts, Probe}, Owner, LogFun], []).
 
 -spec call(pid() | atom(), fun()) -> {available, _} | {unavailable, _} |
-                                     {error, fuse_burnt}.
+                                     {error, fuse_burnt} |
+                                     {error, fuse_exception_encountered}.
 call(Fuse, Fun) ->
   {ok, {Burnt, UserData}} = gen_server:call(Fuse, check_burnt),
   case Burnt of
     false ->
-      case Fun(UserData) of
-        {available, _}   = Val -> Val;
-        {unavailable, _} = Val -> gen_server:cast(Fuse, burn), Val
+      try Fun(UserData) of
+          {available, _}   = Val -> Val;
+          {unavailable, _} = Val -> gen_server:cast(Fuse, burn), Val
+      catch
+        _:_ -> gen_server:cast(Fuse, burn),
+               {error, fuse_exception_encountered}
       end;
     true -> {error, fuse_burnt}
   end.

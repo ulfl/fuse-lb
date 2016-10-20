@@ -46,7 +46,8 @@ call(Lb, Fun) ->
       case fuse:call(Fuse, Fun) of
         {available, X}   -> {ok, X};
         {unavailable, X} -> {ok, X};
-        {error, fuse_burnt} = E -> E
+        {error, fuse_burnt} = E -> E;
+        {error, E} -> error(E) %% Not expected error.
       end
   end.
 

@@ -46,13 +46,11 @@ start_link(FusesConfig, QueueTmo, Log) ->
 call(Pool, Fun) ->
   case gen_server:call(Pool, reserve_fuse, infinity) of
     {ok, Fuse} ->
-      try fuse:call(Fuse, Fun) of
-          {available, X} -> gen_server:cast(Pool, {make_fuse_available, Fuse}),
-                            {ok, X};
-          {unavailable, X} -> {ok, X};
-          {error, fuse_burnt} -> error(fuse_burnt)
-      catch
-        _:_ -> gen_server:cast(Pool, {make_fuse_available, Fuse})
+      case fuse:call(Fuse, Fun) of
+        {available, X} -> gen_server:cast(Pool, {make_fuse_available, Fuse}),
+                          {ok, X};
+        {unavailable, X} -> {ok, X};
+        {error, E} -> error(E) %% Not expected errors.
       end;
     {error, fuse_pool_queue_tmo} = E -> E
   end.

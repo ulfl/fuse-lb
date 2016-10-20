@@ -83,7 +83,7 @@ handle_cast({fuse_burnt, F}, #state{available=Available, log=L} = S) ->
   {noreply, S#state{available=Available -- [F]}};
 handle_cast({fuse_mended, F}, #state{algorithm=Algorithm, available=Available,
                                      log=L} = S) ->
-  L("fuse_lb: Adding refreshed fuse (pid=~p) back to pool.", [F]),
+  L("fuse_lb: Adding fuse (pid=~p) to pool.", [F]),
   {noreply, S#state{available=add_back_fuse(Algorithm, F, Available)}};
 handle_cast(stop, S) -> {stop, ok, S};
 handle_cast(Msg, S)  -> {stop, {unexpected_cast, Msg}, S}.

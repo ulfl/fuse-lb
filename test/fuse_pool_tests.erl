@@ -45,7 +45,7 @@ unavailable_test() ->
   ?ae(1, fuse_pool:num_fuses_active(P)),
   ?ae({ok, 3}, fuse_pool:call(P, fun(UserData) -> {available, UserData} end)),
   ?ae({ok, 3}, fuse_pool:call(P, fun(UserData) -> {unavailable, UserData} end)),
-  ?ae(0, fuse_pool:num_workers_idle(P)).
+  ?ae(0, fuse_pool:num_fuses_idle(P)).
 
 recovery1_test() ->
   Probe = fun probe_available/1,
@@ -57,9 +57,9 @@ recovery1_test() ->
   ?ae({ok, 1}, fuse_pool:call(P, fun(UserData) -> {unavailable, UserData} end)),
   ?ae({ok, 2}, fuse_pool:call(P, fun(UserData) -> {available, UserData} end)),
   ?ae({ok, 2}, fuse_pool:call(P, fun(UserData) -> {available, UserData} end)),
-  ?ae(2, fuse_pool:num_workers_idle(P)),
+  ?ae(2, fuse_pool:num_fuses_idle(P)),
   timer:sleep(1500),
-  ?ae(3, fuse_pool:num_workers_idle(P)),
+  ?ae(3, fuse_pool:num_fuses_idle(P)),
   ?ae({ok, 1}, fuse_pool:call(P, fun(UserData) -> {available, UserData} end)),
   ?ae({ok, 1}, fuse_pool:call(P, fun(UserData) -> {unavailable, UserData} end)).
 
@@ -75,7 +75,7 @@ queue_test() ->
   s(fun() -> ?ae({ok, 2}, fuse_pool:call(P, Work)) end),
   s(fun() -> ?ae({ok, 3}, fuse_pool:call(P, Work)) end),
   timer:sleep(100),
-  ?ae(0, fuse_pool:num_workers_idle(P)),
+  ?ae(0, fuse_pool:num_fuses_idle(P)),
   s(fun() -> ?ae({ok, 1}, fuse_pool:call(P, Work)) end),
   s(fun() -> ?ae({ok, 2}, fuse_pool:call(P, Work)) end),
   s(fun() -> ?ae({ok, 3}, fuse_pool:call(P, Work)) end),
@@ -83,7 +83,7 @@ queue_test() ->
   ?ae(3, fuse_pool:num_jobs_queued(P)),
   w(6),
   ?ae(0, fuse_pool:num_jobs_queued(P)),
-  ?ae(3, fuse_pool:num_workers_idle(P)).
+  ?ae(3, fuse_pool:num_fuses_idle(P)).
 
 recovery2_test() ->
   Probe = fun probe_available/1,
@@ -99,7 +99,7 @@ recovery2_test() ->
   s(fun() -> ?ae({ok, 2}, fuse_pool:call(P, Fail)) end),
   s(fun() -> ?ae({ok, 3}, fuse_pool:call(P, Work)) end),
   timer:sleep(100),
-  ?ae(0, fuse_pool:num_workers_idle(P)),
+  ?ae(0, fuse_pool:num_fuses_idle(P)),
   s(fun() -> ?ae({ok, 1}, fuse_pool:call(P, Work)) end),
   s(fun() -> ?ae({ok, 3}, fuse_pool:call(P, Work)) end),
   s(fun() -> ?ae({ok, 1}, fuse_pool:call(P, Work)) end),
@@ -107,9 +107,9 @@ recovery2_test() ->
   ?ae(3, fuse_pool:num_jobs_queued(P)),
   w(6),
   ?ae(0, fuse_pool:num_jobs_queued(P)),
-  ?ae(2, fuse_pool:num_workers_idle(P)),
+  ?ae(2, fuse_pool:num_fuses_idle(P)),
   timer:sleep(1500),
-  ?ae(3, fuse_pool:num_workers_idle(P)),
+  ?ae(3, fuse_pool:num_fuses_idle(P)),
   s(fun() -> ?ae({ok, 1}, fuse_pool:call(P, Work)) end),
   w(1).
 

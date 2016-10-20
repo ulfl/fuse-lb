@@ -2,9 +2,10 @@
 %%
 %% Similarly to fuse_lb, fuse_pool is configured with a set of fuses and
 %% it will dispatch work requests via them. Fuse_pool will only allow a
-%% single outstanding work request per fuse. If all fuses are busy, then
-%% work requests will wait (up until 'QueueTmo' milliseconds) until
-%% a fuse becomes available and the work request can be handled.
+%% single outstanding work request per fuse. If all fuses are in use,
+%% then work requests will wait (up until 'QueueTmo' milliseconds) until
+%% a fuse becomes available and the work request can be handled, or time
+%% out with an error.
 %%
 %% When initializing a fuse_pool a [fuse:fuse_data()] list is provided
 %% with config for the respective fuse. It contains the fuse user data,
@@ -15,7 +16,7 @@
 -behaviour(gen_server).
 
 -export([start_link/2, start_link/3, call/2, num_fuses_active/1,
-         num_workers_idle/1, num_jobs_queued/1, stop/1]).
+         num_fuses_idle/1, num_jobs_queued/1, stop/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
@@ -43,27 +44,24 @@ start_link(FusesConfig, QueueTmo, Log) ->
 
 -spec call(pid() | atom(), fun()) -> {ok, any()} | {error, fuse_pool_queue_tmo}.
 call(Pool, Fun) ->
-  case gen_server:call(Pool, get_fuse, infinity) of
+  case gen_server:call(Pool, reserve_fuse, infinity) of
     {ok, Fuse} ->
       try fuse:call(Fuse, Fun) of
-          {available, X} -> gen_server:cast(Pool, {available, Fuse}),
+          {available, X} -> gen_server:cast(Pool, {make_fuse_available, Fuse}),
                             {ok, X};
           {unavailable, X} -> {ok, X};
           {error, fuse_burnt} -> error(fuse_burnt)
       catch
-        _:_ -> gen_server:cast(Pool, {available, Fuse})
+        _:_ -> gen_server:cast(Pool, {make_fuse_available, Fuse})
       end;
     {error, fuse_pool_queue_tmo} = E -> E
   end.
 
 -spec num_fuses_active(pid() | atom()) -> integer().
-num_fuses_active(Pool) ->
-  L0 = gen_server:call(Pool, get_all),
-  L1 = lists:filter(fun(X) -> not fuse:is_burnt(X) end, L0),
-  length(L1).
+num_fuses_active(Pool) -> gen_server:call(Pool, get_num_active).
 
--spec num_workers_idle(pid() | atom()) -> integer().
-num_workers_idle(Pool) -> gen_server:call(Pool, get_num_available).
+-spec num_fuses_idle(pid() | atom()) -> integer().
+num_fuses_idle(Pool) -> gen_server:call(Pool, get_num_available).
 
 -spec num_jobs_queued(pid() | atom()) -> integer().
 num_jobs_queued(Pool) -> gen_server:call(Pool, get_num_queued).
@@ -85,14 +83,15 @@ init(FusesConfig, QueueTmo, LogFun) ->
   erlang:send_after(?PRUNE_PERIOD, self(), prune),
   {ok, #state{all=A, available=[], tmo=QueueTmo, log=LogFun}}.
 
-handle_call(get_fuse, _From, #state{available=[F | T]} = S) ->
+handle_call(reserve_fuse, _From, #state{available=[F | T]} = S) ->
   {reply, {ok, F}, S#state{available=T, worker_shortage=false}};
-handle_call(get_fuse, From, #state{available=[], queue=Q} = S) ->
+handle_call(reserve_fuse, From, #state{available=[], queue=Q} = S) ->
   log_worker_shortage(S),
   NewQ = queue:in({From, now()}, Q),
   {noreply, S#state{queue=NewQ, worker_shortage=true}};
-handle_call(get_all, _From, #state{all=All} = S) ->
-  {reply, All, S};
+handle_call(get_num_active, _From, #state{all=All} = S) ->
+  L = lists:filter(fun(X) -> not fuse:is_burnt(X) end, All),
+  {reply,   length(L), S};
 handle_call(get_num_available, _From, #state{available=Available} = S) ->
   {reply, length(Available), S};
 handle_call(get_num_queued, _From, #state{queue=Q} = S) ->
@@ -100,13 +99,13 @@ handle_call(get_num_queued, _From, #state{queue=Q} = S) ->
 handle_call(stop, _From, S) ->
   {stop, normal, ok, S}.
 
-handle_cast({available, F}, #state{} = S)  ->
+handle_cast({make_fuse_available, F}, #state{} = S)  ->
   {noreply, add_back_fuse(F, S)};
 handle_cast({fuse_burnt, F}, #state{log=L} = S) ->
   L("fuse_pool: Fuse (pid=~p) burnt, removing from pool.", [F]),
   {noreply, S};
 handle_cast({fuse_mended, F}, #state{log=L} = S) ->
-  L("fuse_pool: Adding refreshed fuse (pid=~p) back to pool.", [F]),
+  L("fuse_pool: Adding fuse (pid=~p) to pool.", [F]),
   {noreply, add_back_fuse(F, S)};
 handle_cast(Msg, S) -> {stop, {unexpected_cast, Msg}, S}.
 

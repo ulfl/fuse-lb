@@ -37,7 +37,7 @@ pool_in_front_of_lb_test() ->
   s(fun() -> ?ae({ok, b1}, fuse_pool:call(P, LbCall)) end),
   s(fun() -> ?ae({ok, b2}, fuse_pool:call(P, LbCall)) end),
   timer:sleep(100),
-  ?ae(0, fuse_pool:num_workers_idle(P)),
+  ?ae(0, fuse_pool:num_fuses_idle(P)),
   ?ae(2, fuse_pool:num_jobs_queued(P)),
   w(6).
 
@@ -88,8 +88,8 @@ lb_in_front_of_pools_async_test() ->
   timer:sleep(50),
   s(fun() -> ?ae({ok, {b2, p2w2}}, fuse_lb:call(Lb, PoolCall)) end),
   timer:sleep(50),
-  ?ae(0, fuse_pool:num_workers_idle(P1)),
-  ?ae(0, fuse_pool:num_workers_idle(P2)),
+  ?ae(0, fuse_pool:num_fuses_idle(P1)),
+  ?ae(0, fuse_pool:num_fuses_idle(P2)),
   s(fun() -> ?ae({ok, {b1, p1w1}}, fuse_lb:call(Lb, PoolCall)) end),
   s(fun() -> ?ae({ok, {b2, p2w1}}, fuse_lb:call(Lb, PoolCall)) end),
   timer:sleep(50),

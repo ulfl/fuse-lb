@@ -28,8 +28,15 @@
 %% is jobs waiting for an available fuse. 'tmo' is the max amount of
 %% milliseconds a job should be allowed in the queue. 'log' is the log
 %% fun. 'worker_shortage' is set to true if queuing has been started.
--record(state, {all=[], available=[], queue=queue:new(), tmo=undefined,
-                log=undefined, worker_shortage=false}).
+-record(state, { all=[]
+               , available=[]
+               , clients=[]
+               , queue=queue:new()
+               , tmo=undefined
+               , log=undefined
+               , worker_shortage=false}).
+
+-record(mapping, {fuse, client}).
 
 %%%_* API ==============================================================
 -spec start_link([fuse:fuse_data()], integer()) ->
@@ -81,8 +88,11 @@ init(FusesConfig, QueueTmo, LogFun) ->
   erlang:send_after(?PRUNE_PERIOD, self(), prune),
   {ok, #state{all=A, available=[], tmo=QueueTmo, log=LogFun}}.
 
-handle_call(reserve_fuse, _From, #state{available=[F | T]} = S) ->
-  {reply, {ok, F}, S#state{available=T, worker_shortage=false}};
+handle_call(reserve_fuse, {Pid, _Ref}, #state{available=[F | T], clients=Clients} = S) ->
+  Mapping = #mapping{fuse=F, client=erlang:monitor(process, Pid)},
+  {reply, {ok, F}, S#state{ available=T
+                          , worker_shortage=false
+                          , clients=[Mapping | Clients]}};
 handle_call(reserve_fuse, From, #state{available=[], queue=Q} = S) ->
   log_worker_shortage(S),
   NewQ = queue:in({From, erlang:timestamp()}, Q),
@@ -120,6 +130,17 @@ handle_info(prune, #state{queue=Q0, tmo=QueueTmo} = S) ->
   Q = queue:filter(Prune, Q0),
   erlang:send_after(?PRUNE_PERIOD, self(), prune),
   {noreply, S#state{queue=Q}};
+handle_info({'DOWN', Ref, process, Pid, _Reason}, #state{clients=Clients, log=L} = S) ->
+  case lists:keytake(Ref, #mapping.client, Clients) of
+    {value, Mapping, NewClients} ->
+      F = Mapping#mapping.fuse,
+      L("client (~p) exited without returning fuse (~p).", [Pid, F]),
+      fuse:burn(F),
+      {noreply, S#state{clients=NewClients}};
+    false ->
+      %% We might receive the DOWN before removing the monitor so ignore unknown ones
+      {noreply, S}
+  end;
 handle_info(Msg, S) ->
   {stop, {unexpected_info, Msg}, S}.
 
@@ -128,14 +149,24 @@ terminate(_Reason, _State) -> ok.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 %%%_* Internal =========================================================
-add_back_fuse(Fuse, #state{available=A, queue=Q0} = S) ->
+add_back_fuse(Fuse, #state{available=A, queue=Q0, clients=Clients} = S) ->
+  NewClients = case lists:keytake(Fuse, #mapping.fuse, Clients) of
+    {value, OldMapping, RemovedClients} ->
+      erlang:demonitor(OldMapping#mapping.client),
+      RemovedClients;
+    false ->
+      Clients
+  end,
   case queue:is_empty(Q0) of
     true  ->
-      S#state{available=lists:usort([Fuse | A])};
+      S#state{ available=lists:usort([Fuse | A])
+             , clients=NewClients};
     false ->
-      {{value, {From, _Ts}}, Q} = queue:out(Q0),
+      {{value, {{Pid, _} = From, _Ts}}, Q} = queue:out(Q0),
+      Mapping = #mapping{fuse=Fuse, client=erlang:monitor(process, Pid)},
       gen_server:reply(From, {ok, Fuse}),
-      S#state{available=A, queue=Q}
+      S#state{ available=A, queue=Q
+             , clients=[Mapping | NewClients]}
   end.
 
 log_worker_shortage(#state{worker_shortage=false, log=L}) ->

@@ -131,6 +131,30 @@ queue_tmo_test() ->
   s(fun() -> ?ae({ok, 1}, fuse_pool:call(P, Work)) end),
   w(7).
 
+queue_crash_test() ->
+    Probe = fun probe_available/1,
+  Tmos = [500],
+  {ok, P} = fuse_pool:start_link([{1, Tmos, Probe}],
+                                 1000, fun(F, A) -> ?debugFmt(F, A) end),
+  give_time_to_initialize_fuses(),
+  Worker = spawn(fun() -> fuse_pool:call(P, fun wait_work/1) end),
+  Worker2 = spawn(fun() -> fuse_pool:call(P, fun wait_work/1) end),
+  % Ensure it has time to get queued up for a fuse
+  timer:sleep(100),
+  % Kill Worker5 before it gets fuse.
+  exit(Worker2, kill),
+  Worker ! done,
+  % Let Worker finish and Worker2 fuse burn and get returned
+  timer:sleep(1000),
+  % Assert that worker2 who crashed during queuing doesn't get the returned fuse
+  ?ae(1, fuse_pool:num_fuses_idle(P)).
+
+wait_work(X) ->
+  receive
+    done -> {available, X}
+  after 10000 -> {available, X}
+  end.
+
 %%%_* Helpers ==========================================================
 s(Fun) ->
   Pid = spawn_link(Fun),

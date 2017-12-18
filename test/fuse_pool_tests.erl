@@ -8,14 +8,14 @@
 give_time_to_initialize_fuses() -> timer:sleep(7).
 
 probe_available(FuseNum) ->
-  timer:sleep(random:uniform(4)),
+  timer:sleep(rand:uniform(4)),
   {available, FuseNum}.
 
 probe_unavailable({init, FuseNum}) ->
-  timer:sleep(random:uniform(4)),
+  timer:sleep(rand:uniform(4)),
   {available, FuseNum};
 probe_unavailable(FuseNum) ->
-  timer:sleep(random:uniform(4)),
+  timer:sleep(rand:uniform(4)),
   {unavailable, FuseNum}.
 
 simple_calls_test() ->

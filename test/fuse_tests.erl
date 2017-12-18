@@ -6,7 +6,7 @@
 %%%_* Tests ============================================================
 
 probe_available(state_data) ->
-  timer:sleep(random:uniform(4)),
+  timer:sleep(rand:uniform(4)),
   {available, state_data}.
 
 give_time_to_initialize_fuses() -> timer:sleep(7).

@@ -85,7 +85,7 @@ handle_call(reserve_fuse, _From, #state{available=[F | T]} = S) ->
   {reply, {ok, F}, S#state{available=T, worker_shortage=false}};
 handle_call(reserve_fuse, From, #state{available=[], queue=Q} = S) ->
   log_worker_shortage(S),
-  NewQ = queue:in({From, now()}, Q),
+  NewQ = queue:in({From, erlang:timestamp()}, Q),
   {noreply, S#state{queue=NewQ, worker_shortage=true}};
 handle_call(get_num_active, _From, #state{all=All} = S) ->
   L = lists:filter(fun(X) -> not fuse:is_burnt(X) end, All),
@@ -109,7 +109,7 @@ handle_cast(Msg, S) -> {stop, {unexpected_cast, Msg}, S}.
 
 handle_info(prune, #state{queue=Q0, tmo=QueueTmo} = S) ->
   Prune = fun({From, Ts}) ->
-              case timer:now_diff(now(), Ts)  > (QueueTmo * 1000) of
+              case timer:now_diff(erlang:timestamp(), Ts)  > (QueueTmo * 1000) of
                 true  ->
                   gen_server:reply(From, {error, fuse_pool_queue_tmo}),
                   false;

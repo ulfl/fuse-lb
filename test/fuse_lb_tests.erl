@@ -8,14 +8,14 @@
 give_time_to_initialize_fuses() -> timer:sleep(7).
 
 probe_available(FuseNum) ->
-  timer:sleep(random:uniform(4)),
+  timer:sleep(rand:uniform(4)),
   {available, FuseNum}.
 
 probe_unavailable({init, FuseNum}) ->
-  timer:sleep(random:uniform(4)),
+  timer:sleep(rand:uniform(4)),
   {available, FuseNum};
 probe_unavailable(FuseNum) ->
-  timer:sleep(random:uniform(4)),
+  timer:sleep(rand:uniform(4)),
   {unavailable, FuseNum}.
 
 round_robin_test() ->
@@ -77,7 +77,7 @@ round_robin_failure_test() ->
 round_robin_probe_test() ->
   Cnt = fuse_misc:make_counter(),
   Probe = fun({init, FuseNum}) ->
-              timer:sleep(random:uniform(4)),
+              timer:sleep(rand:uniform(4)),
               {available, FuseNum};
              (X) ->
               case Cnt(inc) >= 3 of
@@ -121,7 +121,7 @@ round_robin_probe_test() ->
 round_robin_backoff_test() ->
   Cnt = fuse_misc:make_counter(),
   Probe = fun({init, FuseNum}) ->
-              timer:sleep(random:uniform(4)),
+              timer:sleep(rand:uniform(4)),
               {available, FuseNum};
              (X) ->
               case Cnt(inc) >= 5 of
@@ -233,10 +233,10 @@ race_helper(N) ->
   give_time_to_initialize_fuses(),
 
   fuse_misc:pmap(fun(_) ->
-                     timer:sleep(random:uniform(10)),
+                     timer:sleep(rand:uniform(10)),
                      fuse_lb:call(Lb,
                                   fun(State) ->
-                                      timer:sleep(random:uniform(5)),
+                                      timer:sleep(rand:uniform(5)),
                                       {unavailable, State}
                                   end)
                  end, lists:seq(1, 20)),

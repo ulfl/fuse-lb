@@ -22,7 +22,7 @@
 -module(fuse).
 -behaviour(gen_server).
 
--export([start_link/3, call/2, is_burnt/1, stop/1]).
+-export([start_link/3, call/2, is_burnt/1, stop/1, burn/1]).
 
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
@@ -72,6 +72,9 @@ is_burnt(Fuse) ->
 
 -spec stop(pid() | atom()) -> ok.
 stop(Fuse) -> gen_server:call(Fuse, stop).
+
+-spec burn(pid() | atom()) -> ok.
+burn(Fuse) -> gen_server:cast(Fuse, burn).
 
 %%%_* Gen server callbacks =============================================
 init([{Init, Timeouts, Probe}, Owner, LogFun]) ->

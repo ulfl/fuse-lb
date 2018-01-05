@@ -16,7 +16,7 @@ Pmap = fun(F, L) -> Pid = self(), [receive {P, Result} -> Result end ||
                                          X <- L]] end.
 
 D = fun(T) -> timer:sleep(T) end.
-DR = fun(T) -> timer:sleep(random:uniform(T)) end.
+DR = fun(T) -> timer:sleep(rand:uniform(T)) end.
 
 T = fun(F) -> {T, R} = timer:tc(F), {T/(1000*1000), R} end.
 

@@ -1,18 +1,16 @@
 %% Copyright (c) 2014-2016 Ulf Leopold.
 %%
-%% Fuse_lb is configured with a set of fuses. It will dispatch work
-%% requests via them using the selected algorithm. If a fuse burns it
-%% will be removed from the set. Once the fuse is mended it will again
-%% be included in the set. Different load balancing algorithms can be
-%% used such as round_robin or prio. Fuse_lb does not impose a limit on
-%% the number of simultaneous ongoing requests per fuse. If you need
-%% such a limit, then instead use fuse_pool.
+%% Fuse_lb is configured with a set of fuses. It will dispatch work requests via
+%% them using the selected algorithm. If a fuse burns it will be removed from
+%% the set. Once the fuse is mended it will again be included in the set.
+%% Different load balancing algorithms can be used such as round_robin or prio.
+%% Fuse_lb does not impose a limit on the number of simultaneous ongoing
+%% requests per fuse. If you need such a limit, then instead use fuse_pool.
 %%
-%% When initializing a fuse_lb a [fuse:fuse_data()] list is provided
-%% with config for the respective fuse. It contains the fuse user data,
-%% probe back-off schedule, and the probe function. Fuses start out in a
-%% burnt state which means that they will call the probe function to
-%% initialize themselves.
+%% When initializing a fuse_lb a [fuse:fuse_data()] list is provided with config
+%% for the respective fuse. It contains the fuse user data, probe back-off
+%% schedule, and the probe function. Fuses start out in a burnt state which
+%% means that they will call the probe function to initialize themselves.
 -module(fuse_lb).
 -behaviour(gen_server).
 
@@ -21,8 +19,8 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
-%% 'algorithm' is the load balancing algorithm to use. 'available' is the
-%% fuses that are not burnt. 'log' is the log fun.
+%% 'algorithm' is the load balancing algorithm to use. 'available' is the fuses
+%% that are not burnt. 'log' is the log fun.
 -record(state, {algorithm=undefined, available=[], log=undefined}).
 
 %%%_* API ==============================================================

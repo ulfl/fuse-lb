@@ -1,17 +1,15 @@
 %% Copyright (c) 2014-2016 Ulf Leopold.
 %%
-%% Similarly to fuse_lb, fuse_pool is configured with a set of fuses and
-%% it will dispatch work requests via them. Fuse_pool will only allow a
-%% single outstanding work request per fuse. If all fuses are in use,
-%% then work requests will wait (up until 'QueueTmo' milliseconds) until
-%% a fuse becomes available and the work request can be handled, or time
-%% out with an error.
+%% Similarly to fuse_lb, fuse_pool is configured with a set of fuses and it will
+%% dispatch work requests via them. Fuse_pool will only allow a single
+%% outstanding work request per fuse. If all fuses are in use, then work
+%% requests will wait until a fuse becomes available and the work request can be
+%% handled, or time out with an error (after 'QueueTmo' milliseconds) .
 %%
-%% When initializing a fuse_pool a [fuse:fuse_data()] list is provided
-%% with config for the respective fuse. It contains the fuse user data,
-%% probe back-off schedule, and the probe function. Fuses start out in a
-%% burnt state which means that they will call the probe function to
-%% initialize themselves.
+%% When initializing a fuse_pool a [fuse:fuse_data()] list is provided with
+%% config for the respective fuse. It contains the fuse user data, probe
+%% back-off schedule, and the probe function. Fuses start out in a burnt state
+%% which means that they will call the probe function to initialize themselves.
 -module(fuse_pool).
 -behaviour(gen_server).
 
@@ -24,10 +22,11 @@
 %% How often the queue is pruned.
 -define(PRUNE_PERIOD, 1000).
 
-%% 'available' is the fuses that are not burnt and not in use. 'queue'
-%% is jobs waiting for an available fuse. 'tmo' is the max amount of
-%% milliseconds a job should be allowed in the queue. 'log' is the log
-%% fun. 'worker_shortage' is set to true if queuing has been started.
+%% 'available' is the fuses that are not burnt and not in use. 'clients' is a
+%% list of processes that currently have "checked out" fuses and are doing work.
+%% 'queue' is jobs waiting for an available fuse. 'tmo' is the max amount of
+%% milliseconds a job should be allowed in the queue. 'log' is the log fun.
+%% 'worker_shortage' is set to true if queuing has been started.
 -record(state, { all=[]
                , available=[]
                , clients=[]
@@ -134,11 +133,12 @@ handle_info({'DOWN', Ref, process, Pid, _Reason}, #state{clients=Clients, log=L}
   case lists:keytake(Ref, #mapping.client, Clients) of
     {value, Mapping, NewClients} ->
       F = Mapping#mapping.fuse,
-      L("client (~p) exited without returning fuse (~p).", [Pid, F]),
+      L("fuse_pool: client process (~p) died. Returning fuse (~p) to pool.", [Pid, F]),
       fuse:burn(F),
       {noreply, S#state{clients=NewClients}};
     false ->
-      %% We might receive the DOWN before removing the monitor so ignore unknown ones
+      %% We might receive the 'DOWN' before removing the monitor so ignore
+      %% unknown ones.
       {noreply, S}
   end;
 handle_info(Msg, S) ->

@@ -1,24 +1,22 @@
 %% Copyright (c) 2014-2016 Ulf Leopold.
 %%
-%% A fuse is implemented as a gen_server process. A fuse can have two
-%% states: active or burnt. Using fuse:call(Fuse, Fun) a given Fun can
-%% be executed using the provided Fuse. If the Fuse is burnt, then Fun
-%% won't be called and {error, fuse_burnt} will instead be returned. If
-%% the Fuse is active, then Fun will be called with UserData as its
-%% single argument. Fun must either return: {available, <return data>}
-%% or {unavailable, <return data>} depending on the availability of the
-%% service that Fun relies on. In either case <return data> is returned
-%% to the caller. If 'available' was returned, then the Fuse remains
-%% available. If 'unavailable' was returned, then the Fuse changes to
-%% state burnt (and informs its parent with a "fuse_burnt" message).
+%% A fuse is implemented as a gen_server process. A fuse can have two states:
+%% active or burnt. Using fuse:call(Fuse, Fun) a given Fun can be executed using
+%% the provided Fuse. If the Fuse is burnt, then Fun won't be called and {error,
+%% fuse_burnt} will instead be returned. If the Fuse is active, then Fun will be
+%% called with UserData as its single argument. Fun must either return:
+%% {available, <return data>} or {unavailable, <return data>} depending on the
+%% availability of the service that Fun relies on. In either case <return data>
+%% is returned to the caller. If 'available' is returned, then the Fuse remains
+%% available. If 'unavailable' is returned, then the Fuse changes to state burnt
+%% (and informs its Owner with a "fuse_burnt" message).
 %%
-%% A Fuse that is in state burnt will try to recover by periodically
-%% calling the provided Probe function. If the Probe returns {available,
-%% UserData} the Fuse will change back to active state (and notify its
-%% Owner via a "fuse_mended" message). If the Probe returns {unavailable,
-%% UserData} then it will remain unavailable. How often the Probe is
-%% called is specified by the Timeouts argument. It can be used to
-%% implement back-off.
+%% A Fuse that is in state burnt will try to recover by periodically calling the
+%% provided Probe function. If the Probe returns {available, UserData} the Fuse
+%% will change back to active state (and notify its Owner via a "fuse_mended"
+%% message). If the Probe returns {unavailable, UserData} then it will remain
+%% unavailable. How often the Probe is called is specified by the Timeouts
+%% argument. It can be used to implement back-off.
 -module(fuse).
 -behaviour(gen_server).
 
@@ -34,8 +32,7 @@
                 timeout_ref=undefined, log=undefined}).
 
 %% fuse_data() is the end user configurable aspects of a fuse. The tuple
-%% consists of user state data, a back-off configuration, and a prope
-%% function.
+%% consists of user state data, a back-off configuration, and a probe function.
 -type fuse_data() :: {any(), fuse:timeout_entry(), fun()}.
 
 -type timeout_entry() :: timeout_count() | timeout_val().

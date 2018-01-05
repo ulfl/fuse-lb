@@ -3,17 +3,17 @@
 all: get-deps compile check
 
 compile:
-	rebar compile
+	rebar3 compile
 
 get-deps:
-	rebar get-deps
+	rebar3 get-deps
 
 check:
 	dialyzer --src src
 
 eunit:
-	rebar eunit skip_deps=true
+	rebar3 eunit skip_deps=true
 
 clean:
-	rebar clean
+	rebar3 clean
 	$(RM) ebin/*.d

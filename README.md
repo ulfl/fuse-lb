@@ -161,7 +161,5 @@ Build and run the unit tests as follows.
 # TODO
 
 * Review logging.
-* Upgrade to R18 and move away from erlang:now().
-* Switch to rebar3.
 
 Fuse-LB: Copyright (c) 2014-2016 Ulf Leopold.

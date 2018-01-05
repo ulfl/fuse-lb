@@ -162,4 +162,4 @@ Build and run the unit tests as follows.
 
 * Review logging.
 
-Fuse-LB: Copyright (c) 2014-2016 Ulf Leopold.
+Fuse-LB: Copyright (c) 2014-2018 Ulf Leopold.

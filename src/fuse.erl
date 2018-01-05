@@ -1,4 +1,4 @@
-%% Copyright (c) 2014-2016 Ulf Leopold.
+%% Copyright (c) 2014-2018 Ulf Leopold.
 %%
 %% A fuse is implemented as a gen_server process. A fuse can have two states:
 %% active or burnt. Using fuse:call(Fuse, Fun) a given Fun can be executed using

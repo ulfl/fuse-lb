@@ -1,4 +1,4 @@
-%% Copyright (c) 2014-2016 Ulf Leopold.
+%% Copyright (c) 2014-2018 Ulf Leopold.
 %%
 %% Fuse_lb is configured with a set of fuses. It will dispatch work requests via
 %% them using the selected algorithm. If a fuse burns it will be removed from

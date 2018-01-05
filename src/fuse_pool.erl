@@ -1,4 +1,4 @@
-%% Copyright (c) 2014-2016 Ulf Leopold.
+%% Copyright (c) 2014-2018 Ulf Leopold.
 %%
 %% Similarly to fuse_lb, fuse_pool is configured with a set of fuses and it will
 %% dispatch work requests via them. Fuse_pool will only allow a single
